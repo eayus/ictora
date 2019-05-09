@@ -1,0 +1,4 @@
+Title: Writing a Purely Functional Shader Language which Compiles to SPIR-V
+
+Abstract:
+The most prominent high-level shader language currently is GLSL, a C-like procedural language. GLSL suffers from a weak type system, allowing invalid operations that could easily be prevented at compile time - this results in runtime errors (or often no errors at all). Runtime errors make the behaviour of software difficult to reason about, and make debugging harder. To resolve this problem, this paper describes the development of a purely functional language, aiming to be a drop in replacement for GLSL. It will compile down to SPIR-V, an intermediate shader program representation.
