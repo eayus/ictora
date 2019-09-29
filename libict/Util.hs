@@ -1,3 +1,3 @@
 module Util where
 
-type Name = String
+type Identifier = String
