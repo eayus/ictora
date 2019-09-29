@@ -1,0 +1,25 @@
+name:                ictora
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/eayus/ictora#readme
+license:             MIT
+license-file:        LICENSE
+author:              Ellis Kesterton
+-- maintainer:          example@example.com
+-- copyright:           2019 Ellis Kesterton
+-- category:            Web
+build-type:          Simple
+cabal-version:       >=1.10
+extra-source-files:  README.md
+
+executable ictora
+  hs-source-dirs:      ictc
+  main-is:             Main.hs
+  default-language:    Haskell2010
+  build-depends:       base, ictora
+
+library
+  hs-source-dirs:      libict
+  exposed-modules:     Lang
+  build-depends:       base
