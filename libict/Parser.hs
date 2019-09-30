@@ -12,10 +12,10 @@ import qualified Text.Megaparsec.Char.Lexer as L
 type Parser = Parsec Void String
 
 testInput :: String
-testInput = "long_name = True\n"
+testInput = "f = map (\\y => y) my_list\ng = \\x => \\y => False\nh = add 5 6\n"
 
 doParse :: IO ()
-doParse = parseTest parseFuncDef testInput
+doParse = parseTest parseProgram testInput
 
 
 parseIdentifier :: Parser Identifier
