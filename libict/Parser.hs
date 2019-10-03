@@ -1,4 +1,5 @@
-module Parser (doParse) where
+module Parser where
+{--module Parser (doParse) where
 
 import Syntax
 import Util
@@ -60,4 +61,4 @@ parseFuncDef = do
     return $ FuncDef name body
 
 parseProgram :: Parser Program
-parseProgram = many parseFuncDef
+parseProgram = many parseFuncDef--}

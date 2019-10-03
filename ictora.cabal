@@ -21,6 +21,6 @@ executable ictora
 
 library
   hs-source-dirs:      libict
-  exposed-modules:     Parser
-  other-modules:       Syntax, Util, Lang
+  exposed-modules:     Parser, IR, Syntax
+  other-modules:       Util, Lang
   build-depends:       base, megaparsec
