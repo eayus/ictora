@@ -38,11 +38,11 @@ data Instruction
     = PushVal Int
     | PushVar Identifier
     | PushClosure Closure
-    | AppendArg
+    | AppendInt
+    | AppendClosure
     | EnterClosure
     | PopAndAdd
     deriving Show
-
 
 
 comp :: Expr -> [Instruction]
@@ -50,9 +50,14 @@ comp (Lit val t) = [PushVal val]
 comp (Var name (TInt)) = [PushVar name]
 comp (Var name (TFunc _ _)) = [PushClosure (Closure name [])]
 comp (Add e1 e2 _) = comp e1 ++ comp e2 ++ [PopAndAdd]
-comp (App e1 e2 _) = comp e1 ++ comp e2 ++ [AppendArg] ++ case typeofExpr e1 of
+comp (App e1 e2 _) = comp e1 ++ comp e2 ++ [appendCommand e2] ++ case typeofExpr e1 of
     (TFunc _ TInt) -> [EnterClosure]
     _ -> []
+
+appendCommand :: Expr -> Instruction
+appendCommand e = case typeofExpr e of
+    TInt -> AppendInt
+    _ -> AppendClosure
 
 
 -- apply (add 2) 3
@@ -68,6 +73,36 @@ AppendArg
 PushVal 3
 AppendArg
 EnterClosure--}
+
+
+data Asm
+    = StoreClosure Int String -- Location, FunctionName
+    | StoreVal Int Int        -- Location, Value
+    | StoreVar Int String     -- Location, Name
+    | PrimAdd Int Int Int        -- Result, Arg0, Arg1
+    | AsmAppendInt Int Int       -- Closure, Arg. Modifies closure
+    | AsmAppendClosure Int Int       -- Closure, Arg. Modifies closure
+    | AsmEnterClosure Int Int    -- Closure to enter, result location
+    deriving Show
+
+
+type VarState = (Int, [Int]) -- Next varname, stack
+
+toAsm :: [Instruction] -> VarState -> [Asm]
+toAsm [] _ = []
+toAsm (x:xs) vs = let (instr, newVs) = toAsm1 x vs in instr : (toAsm xs newVs)
+
+
+toAsm1 :: Instruction -> VarState -> (Asm, VarState)
+toAsm1 (PushClosure (Closure name args)) (n, stack) = (StoreClosure n name, (n + 1, n : stack))
+toAsm1 (PushVal val) (n, stack) = (StoreVal n val, (n + 1, n : stack))
+toAsm1 (PushVar name) (n, stack) = (StoreVar n name, (n + 1, n : stack))
+toAsm1 PopAndAdd (n, (x : y : xs)) = (PrimAdd n x y, (n + 1, n : xs))
+toAsm1 AppendInt (n, (x : y : stack)) = (AsmAppendInt y x, (n, y : stack))
+toAsm1 AppendClosure (n, (x : y : stack)) = (AsmAppendClosure y x, (n, y : stack))
+toAsm1 EnterClosure (n, x : stack) = (AsmEnterClosure x n, (n + 1, n : stack))
+toAsm1 _ _ = error "bad program"
+
 
 
 

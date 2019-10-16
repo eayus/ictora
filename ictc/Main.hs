@@ -3,4 +3,6 @@ module Main where
 import Syntax
 
 main :: IO ()
-main = print (comp testProgram)
+main = do
+    let prog = comp testProgram
+    print (toAsm prog (0, []))
