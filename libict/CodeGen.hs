@@ -1,6 +1,7 @@
 module CodeGen where
 
 import Control.Lens
+import Control.Monad
 import Control.Monad.State.Lazy
 
 import Core.Lang
@@ -33,9 +34,10 @@ freshId = Id . show <$> (nextIdNum <%= (+1))
     
 
 appendInstr :: Instruction -> State CodeGenState ()
-appendInstr newInstr = do
+appendInstr = (instructions %=)
+{--appendInstr newInstr = do
     (CodeGenState types inst nextId) <- get
-    put $ CodeGenState types (inst ++ [newInstr]) nextId
+    put $ CodeGenState types (inst ++ [newInstr]) nextId--}
     
 addOp :: Operation NoRet -> State CodeGenState ()
 addOp op = appendInstr $ InstrNoRet op
@@ -48,10 +50,18 @@ addOpRet op = do
 
 getType :: CType -> State CodeGenState Id
 getType typ = do
+    types <- use $ typeMap . normalTypes
+    maybe (codegenType typ) return (lookup typ types)
+{--getType typ = do
     types <- _normalTypes . _typeMap <$> get
     case lookup typ types of
         Just typeId -> return typeId
-        Nothing -> codegenType typ
+        Nothing -> codegenType typ--}
+
+getFuncType :: FuncType -> State CodeGenState Id
+getFuncType typ = do
+    types <- use $ typeMap . functionTypes
+	maybe (codegenFuncType typ) return (lookup typ types)
 
 -- TODO: codegenType should add to the typemap
 codegenType :: CType -> State CodeGenState Id
@@ -63,7 +73,14 @@ codegenType (TPair t1 t2) = do
     addOpRet $ OpTypeStruct [t1Id, t2Id]
 
 
-codegenFunc :: FuncDef -> State CodeGenState ()
-codegenFunc (FuncDef (FuncType retType paramTypes) name body) = do
+codegenFuncType :: FuncType -> State CodeGenState Id
+codegenFuncType (FuncType retType paramTypes) = do
     retTypeId <- getType retType
-    return ()
+	paramTypeIds <- mapM getType paramTypes
+	addOpRet $ OpTypeFunction retTypeId paramTypeIds
+
+
+codegenFunc :: FuncDef -> State CodeGenState ()
+codegenFunc (FuncDef funcType name body) = do
+    retTypeId <- getType $ returnType funcType
+	funcTypeId <- getFuncType funcType

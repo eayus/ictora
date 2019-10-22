@@ -6,4 +6,6 @@ data CType
     | TPair CType CType
     deriving Eq
 
-data FuncType = FuncType CType [CType] -- Return Type cannot be TFunc!!
+data FuncType = FuncType
+    { returnType :: CType -- Return Type cannot be TFunc!!
+	, paramTypes :: [CType] }
