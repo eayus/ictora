@@ -21,7 +21,7 @@ executable ictora
 
 library
   hs-source-dirs:      libict
-  exposed-modules:     Parser, IR, Syntax, Core.Lang, Core.Type, CodeGen, SpirV.Lang
+  exposed-modules:     Parser, IR, Syntax, Core.Lang, Core.Type, CodeGen.Convert, CodeGen.State, SpirV.Lang
   other-modules:       Util, Lang
   build-depends:       base, megaparsec, mtl, lens
   default-extensions:  FlexibleInstances, GADTs, KindSignatures, DataKinds, TemplateHaskell

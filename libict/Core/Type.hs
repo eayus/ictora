@@ -4,8 +4,9 @@ data CType
     = TFunc
     | TInt
     | TPair CType CType
-    deriving Eq
+    deriving (Eq, Show)
 
 data FuncType = FuncType
     { returnType :: CType -- Return Type cannot be TFunc!!
-	, paramTypes :: [CType] }
+    , paramTypes :: [CType] }
+    deriving (Eq, Show)
