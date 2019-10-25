@@ -21,6 +21,9 @@ addOpRet op = do
 getVarType :: CType -> CodeGen Id
 getVarType typ = lookupVarType typ >>= maybe (cgVarType typ) return
 
+getPtrType :: CType -> CodeGen Id
+getPtrType typ = lookupPtrType typ >>= maybe (cgPtrType typ) return
+
 getFuncType :: FuncType -> CodeGen Id
 getFuncType typ = lookupFuncType typ >>= maybe (cgFuncType typ) return
 
@@ -36,6 +39,13 @@ cgVarType t@(TPair t1 t2) = do
     tId <- addOpRet $ OpTypeStruct [t1Id, t2Id]
     insertVarType tId t
     return tId
+
+cgPtrType :: CType -> CodeGen Id
+cgPtrType typ = do
+    nonPtrType <- getVarType typ
+    ptrId <- addOpRet $ OpTypePointer FunctionStorage nonPtrType
+    insertPtrType ptrId typ
+    return ptrId
 
 cgFuncType :: FuncType -> CodeGen Id
 cgFuncType t@(FuncType retType paramTypes) = do
@@ -75,3 +85,36 @@ cgExpr (App funcId params typ) scope = do
     paramIds <- mapM (flip cgExpr scope) params
     retTypeId <- getVarType typ
     addOpRet $ OpFunctionCall retTypeId func paramIds
+cgExpr (MkPair e1 e2 typ) scope = do
+    e1Id <- cgExpr e1 scope
+    e2Id <- cgExpr e2 scope
+    pairType <- getVarType typ
+    pairPtrType <- getPtrType typ
+    pairPtr <- addOpRet $ OpVariable pairPtrType FunctionStorage Nothing
+    let (TPair ltype rtype) = typ
+    ltypePtr <- getPtrType ltype
+    rtypePtr <- getPtrType rtype
+    intType <- getVarType TInt
+    const0 <- addOpRet $ OpConstant intType 0
+    const1 <- addOpRet $ OpConstant intType 1
+    ptrToFirst <- addOpRet $ OpAccessChain ltypePtr pairPtr [const0]
+    ptrToSecond <- addOpRet $ OpAccessChain rtypePtr pairPtr [const1]
+    addOp $ OpStore ptrToFirst e1Id MemAccessNormal
+    addOp $ OpStore ptrToSecond e2Id MemAccessNormal
+    addOpRet $ OpLoad pairType pairPtr MemAccessNormal
+cgExpr (DePair (var1, var2) (ltype, rtype) pairExpr continuation _) scope = do
+    pairExprId <- cgExpr pairExpr scope
+    pairPtrType <- getPtrType $ TPair ltype rtype
+    pairVar <- addOpRet $ OpVariable pairPtrType FunctionStorage (Just pairExprId)
+    ltypePtr <- getPtrType ltype
+    rtypePtr <- getPtrType rtype
+    intType <- getVarType TInt
+    const0 <- addOpRet $ OpConstant intType 0
+    const1 <- addOpRet $ OpConstant intType 1
+    ptrToLeft <- addOpRet $ OpAccessChain ltypePtr pairVar [const0]
+    ptrToRight <- addOpRet $ OpAccessChain rtypePtr pairVar [const1]
+    ltypeId <- getVarType ltype
+    rtypeId <- getVarType rtype
+    left <- addOpRet $ OpLoad ltypeId ptrToLeft MemAccessNormal
+    right <- addOpRet $ OpLoad rtypeId ptrToRight MemAccessNormal
+    cgExpr continuation $ (var1, left) : (var2, right) : scope

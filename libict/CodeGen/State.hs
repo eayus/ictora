@@ -12,6 +12,7 @@ import SpirV.Lang
 
 data IdMap = IdMap
     { varTypes :: [(CType, Id)]
+    , ptrTypes :: [(CType, Id)]
     , funcTypes :: [(FuncType, Id)]
     , functions :: [(FuncIdentifier, Id)] }
     deriving Show
@@ -28,7 +29,7 @@ type CodeGen = State CGState
 type LocalScope = [(VarIdentifier, Id)]
 
 initialCGState :: CGState
-initialCGState = CGState (IdMap [] [] []) [] (IdGenerator 0)
+initialCGState = CGState (IdMap [] [] [] []) [] (IdGenerator 0)
 
 codeGen :: CodeGen a -> CGState
 codeGen st = execState st initialCGState 
@@ -51,6 +52,9 @@ freshId = do
 lookupVarType :: CType -> CodeGen (Maybe Id)
 lookupVarType typ = (lookup typ) . varTypes . idMap <$> get
 
+lookupPtrType :: CType -> CodeGen (Maybe Id)
+lookupPtrType typ = (lookup typ) . ptrTypes . idMap <$> get
+
 lookupFuncType :: FuncType -> CodeGen (Maybe Id)
 lookupFuncType typ = (lookup typ) . funcTypes . idMap <$> get
 
@@ -60,6 +64,9 @@ lookupFunction func = (lookup func) . functions . idMap <$> get
 
 insertVarType :: Id -> CType -> CodeGen ()
 insertVarType typId typ = modify $ \st -> st { idMap = (idMap st) { varTypes = (typ, typId) : varTypes (idMap st) } }
+
+insertPtrType :: Id -> CType -> CodeGen ()
+insertPtrType typId typ = modify $ \st -> st { idMap = (idMap st) { ptrTypes = (typ, typId) : ptrTypes (idMap st) } }
 
 insertFuncType :: Id -> FuncType -> CodeGen ()
 insertFuncType typId typ = modify $ \st -> st { idMap = (idMap st) { funcTypes = (typ, typId) : funcTypes (idMap st) } }

@@ -9,6 +9,8 @@ data Purity = Impure | Pure | Const   -- Pure functions can access global memory
 data FunctionControl = FunctionControl 
     { inline :: ShouldInline
     , purity :: Purity }
+data StorageClass = FunctionStorage
+data MemoryAccess = MemAccessNormal
 
 data Operation (t :: OperationType) where
     OpTypeInt :: Int -> Signedness -> Operation Ret                  -- width (bits), sign
@@ -20,6 +22,11 @@ data Operation (t :: OperationType) where
     OpFunctionEnd :: Operation NoRet
     OpConstant :: Show a => Id -> a -> Operation Ret                 -- type, literal
     OpFunctionCall :: Id -> Id -> [Id] -> Operation Ret              -- return type, func to call, parameters
+    OpTypePointer :: StorageClass -> Id -> Operation Ret             -- storage class, type pointing to
+    OpVariable :: Id -> StorageClass -> Maybe Id -> Operation Ret    -- pointer type, storage class, initial value
+    OpStore :: Id -> Id -> MemoryAccess -> Operation NoRet           -- ptr to variable, value to write, memory access type
+    OpLoad :: Id -> Id -> MemoryAccess -> Operation Ret              -- type after dereference, ptr to dereference, memory access type
+    OpAccessChain :: Id -> Id -> [Id] -> Operation Ret              -- ptr type of variable were trying to access, ptr type of struct, index of the fields to access
 
 
 data Instruction where
@@ -47,6 +54,12 @@ instance Show Purity where
 instance Show FunctionControl where
     show (FunctionControl inl puri) = "(" ++ show inl ++ "|" ++ show puri ++ ")"
 
+instance Show StorageClass where
+    show FunctionStorage = "Function"
+
+instance Show MemoryAccess where
+    show MemAccessNormal = "None"
+
 instance Show (Operation Ret) where
     show (OpTypeInt width sign) = unwords ["OpTypeInt", show width, show sign]
     show (OpTypeStruct subTypes) = unwords $ "OpTypeStruct" : map show subTypes
@@ -55,10 +68,14 @@ instance Show (Operation Ret) where
     show (OpFunctionParameter typ) = unwords ["OpFunctionParameter", show typ]
     show (OpConstant typ val) = unwords ["OpConstant", show typ, show val]
     show (OpFunctionCall ret f params) = unwords $ "OpFunctionCall" : show ret : show f : map show params
+    show (OpTypePointer storage typ) = unwords ["OpTypePointer", show storage, show typ]
+    show (OpVariable ptrType storage val) = unwords ["OpVariable", show ptrType, show storage, show val]
+    show (OpLoad typ ptr mem) = unwords ["OpLoad", show typ, show ptr, show mem]
 
 instance Show (Operation NoRet) where
     show OpFunctionEnd = "OpFunctionEnd"
     show (OpReturnValue ret) = unwords ["OpReturnValue", show ret]
+    show (OpStore ptr val mem) = unwords ["OpStore", show ptr, show val, show mem]
 
 instance Show Instruction where
     show (InstrRet res op) = show res ++ " = " ++ show op

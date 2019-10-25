@@ -12,17 +12,14 @@ data Expr
     | Lit Literal
     -- | Func FuncIdentifier CType
     | App FuncIdentifier [Expr] CType
-    | MkPair Pair CType
-    | DePair (VarIdentifier, VarIdentifier) Pair Expr CType -- let (x, y) = pair in ...
-
-data Pair = Pair Expr Expr
+    | MkPair Expr Expr CType
+    | DePair (VarIdentifier, VarIdentifier) (CType, CType) Expr Expr CType -- let (x, y) = pair in ...
 
 -- Want to enforce the invariant that arity of function must equal number of expressions passed as args
 
 data FuncDef = FuncDef FuncType FuncIdentifier [VarIdentifier] Expr
 
 newtype Program = Program [FuncDef]
-
 
 
 

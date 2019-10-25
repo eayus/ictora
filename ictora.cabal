@@ -23,5 +23,5 @@ library
   hs-source-dirs:      libict
   exposed-modules:     Parser, IR, Syntax, Core.Lang, Core.Type, CodeGen.Convert, CodeGen.State, SpirV.Lang
   other-modules:       Util, Lang
-  build-depends:       base, megaparsec, mtl, lens
+  build-depends:       base, megaparsec, mtl
   default-extensions:  FlexibleInstances, GADTs, KindSignatures, DataKinds, TemplateHaskell
