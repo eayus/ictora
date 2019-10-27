@@ -9,8 +9,15 @@ data Purity = Impure | Pure | Const   -- Pure functions can access global memory
 data FunctionControl = FunctionControl 
     { inline :: ShouldInline
     , purity :: Purity }
-data StorageClass = FunctionStorage
+data StorageClass = FunctionStorage | InputStorage | OutputStorage
 data MemoryAccess = MemAccessNormal
+data Capability = ShaderCap | MatrixCap
+data AddressingModel = Logical | Physical32 | Physical64
+    deriving Show
+data MemoryModel = Simple | GLSL450 | OpenCL
+    deriving Show
+data ExecutionModel = Vertex | Fragment
+    deriving Show
 
 data Operation (t :: OperationType) where
     OpTypeInt :: Int -> Signedness -> Operation Ret                  -- width (bits), sign
@@ -26,7 +33,11 @@ data Operation (t :: OperationType) where
     OpVariable :: Id -> StorageClass -> Maybe Id -> Operation Ret    -- pointer type, storage class, initial value
     OpStore :: Id -> Id -> MemoryAccess -> Operation NoRet           -- ptr to variable, value to write, memory access type
     OpLoad :: Id -> Id -> MemoryAccess -> Operation Ret              -- type after dereference, ptr to dereference, memory access type
-    OpAccessChain :: Id -> Id -> [Id] -> Operation Ret              -- ptr type of variable were trying to access, ptr type of struct, index of the fields to access
+    OpAccessChain :: Id -> Id -> [Id] -> Operation Ret               -- ptr type of variable were trying to access, ptr type of struct, index of the fields to access
+    OpCapability :: Capability -> Operation NoRet                    -- capability to enable
+    OpMemoryModel :: AddressingModel -> MemoryModel -> Operation NoRet
+    OpEntryPoint :: ExecutionModel -> Id -> String -> [Id] -> Operation NoRet -- execution model, id of func, unique name of func, list of global variables that are the input and outputs to the shader.
+    
 
 
 data Instruction where
@@ -60,6 +71,10 @@ instance Show StorageClass where
 instance Show MemoryAccess where
     show MemAccessNormal = "None"
 
+instance Show Capability where
+     show ShaderCap = "Shader"
+     show MatrixCap = "Matrix"
+
 instance Show (Operation Ret) where
     show (OpTypeInt width sign) = unwords ["OpTypeInt", show width, show sign]
     show (OpTypeStruct subTypes) = unwords $ "OpTypeStruct" : map show subTypes
@@ -71,11 +86,15 @@ instance Show (Operation Ret) where
     show (OpTypePointer storage typ) = unwords ["OpTypePointer", show storage, show typ]
     show (OpVariable ptrType storage val) = unwords ["OpVariable", show ptrType, show storage, show val]
     show (OpLoad typ ptr mem) = unwords ["OpLoad", show typ, show ptr, show mem]
+    show (OpAccessChain varType structType indices) = unwords $ "OpAcessChain" : show varType : show structType : map show indices
 
 instance Show (Operation NoRet) where
     show OpFunctionEnd = "OpFunctionEnd"
     show (OpReturnValue ret) = unwords ["OpReturnValue", show ret]
     show (OpStore ptr val mem) = unwords ["OpStore", show ptr, show val, show mem]
+    show (OpCapability cap) = unwords ["OpCapability", show cap]
+    show (OpMemoryModel addr mem) = unwords ["OpMemoryModel", show addr, show mem]
+    show (OpEntryPoint execModel func name inOuts) = unwords $ "OpEntryPoint" : show execModel : show func : show name : map show inOuts
 
 instance Show Instruction where
     show (InstrRet res op) = show res ++ " = " ++ show op

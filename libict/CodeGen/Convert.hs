@@ -55,6 +55,18 @@ cgFuncType t@(FuncType retType paramTypes) = do
     insertFuncType tId t
     return tId
 
+
+cgProgram :: Program -> CodeGen ()
+cgProgram (Program funcs) = do
+    addOp $ OpCapability ShaderCap
+    addOp $ OpMemoryModel Logical Simple
+
+    inputId <- freshId
+    vertexMainId <- freshId
+    addOp $ OpEntryPoint Vertex vertexMainId "vertex" [inputId]
+    -- TODO: generate OpVariable global variables for the inputs and outputs of the shader
+
+
 cgFunc :: FuncDef -> CodeGen ()
 cgFunc (FuncDef funcType name params body) = do
     retTypeId <- getVarType $ returnType funcType
