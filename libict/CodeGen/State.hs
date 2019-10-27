@@ -5,6 +5,7 @@ import Control.Monad.State.Lazy
 import Core.Type
 import Core.Lang
 import SpirV.Lang
+import SpirV.CodeGen
 
 -- This module contains the types which hold state during code generation. This
 -- mainly encompasses the mapping of 'Core' language identifiers to 'Spir-V'
@@ -15,7 +16,6 @@ data IdMap = IdMap
     , ptrTypes :: [(CType, Id)]
     , funcTypes :: [(FuncType, Id)]
     , functions :: [(FuncIdentifier, Id)] }
-    deriving Show
 
 data IdGenerator = IdGenerator Int -- Uses an internal integer counter to generate fresh Ids
 
