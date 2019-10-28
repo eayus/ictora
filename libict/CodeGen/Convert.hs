@@ -10,8 +10,6 @@ import SpirV.Options
 import Core.Type
 import Core.Lang
 
--- TODO: SpirV does allow forward calls to functions, but need to know the ID in advance. Perhaps special system?
-
 addOp :: Operation NoResult -> CodeGen ()
 addOp op = appendInstr $ Instruction op
 
