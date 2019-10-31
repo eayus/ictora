@@ -2,16 +2,17 @@ module SpirV.Type where
 
 import SpirV.Options
 
-data STypeKind = KVoid | KScalar | KComposite
+data TypeKind = KVoid | Scalar | Composite
 
-type family IsVoid (t :: STypeKind) :: Bool where
-    IsVoid KVoid = 'True
-	IsVoid _     = 'False
+data STypeKind :: TypeKind -> Type where
+    SKVoid :: STypeKind KVoid
+    SScalar :: STypeKind Scalar
+    SComposite :: STypeKind Composite
 
-
-data SType (t :: STypeKind) where
-    TVoid :: SType NonScalar
-	TInt :: Width -> Signedness -> SType Scalar
-	TBool :: SType Scalar
-	TFloat :: SType Scalar
-	TVec :: IsVoid a ~ 'True => SType a -> SType NonScalar
+data SType :: TypeKind -> Type where
+    TVoid :: SType KVoid
+    TInt :: Int -> Signedness -> SType Scalar
+    TBool :: SType Scalar
+    TFloat :: SType Scalar
+    TVec :: SType Scalar -> SType Composite
+    TSum :: SType t1 -> SType t2 -> SType Composite

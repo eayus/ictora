@@ -29,7 +29,7 @@ library libict
 
 library libspirv
   hs-source-dirs:      libspirv
-  exposed-modules:     SpirV.Lang, SpirV.Options, SpirV.Operations, SpirV.CodeGen
+  exposed-modules:     SpirV.Lang, SpirV.Options, SpirV.Operations, SpirV.CodeGen, SpirV.Type
   build-depends:       base
   default-extensions:  GADTs, DataKinds, KindSignatures, FlexibleInstances
   default-language:    Haskell2010

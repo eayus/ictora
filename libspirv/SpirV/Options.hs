@@ -20,7 +20,7 @@ data FunctionOptions = FunctionOptions
     , purity :: Purity }
 
 -- Whether a variable is local to the function, or a shader input/output variable
-data StorageClass = FunctionStorage | InputStorage | OutputStorage
+data StorageClass = FunctionStorage | InputStorage | OutputStorage deriving Eq
 
 -- Properties of a memory access (volatility etc.). Only the default memory access type is supported currently.
 data MemoryAccessType = NormalMemAccess

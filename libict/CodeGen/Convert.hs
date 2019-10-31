@@ -7,6 +7,7 @@ import SpirV.Lang
 import SpirV.CodeGen
 import SpirV.Operations
 import SpirV.Options
+import qualified SpirV.Type as ST
 import Core.Type
 import Core.Lang
 
@@ -22,8 +23,8 @@ addOpResult op = do
 getVarType :: CType -> CodeGen Id
 getVarType typ = lookupVarType typ >>= maybe (cgVarType typ) return
 
-getPtrType :: CType -> CodeGen Id
-getPtrType typ = lookupPtrType typ >>= maybe (cgPtrType typ) return
+getPtrType :: CType -> StorageClass -> CodeGen Id
+getPtrType typ sc = lookupPtrType typ sc >>= maybe (cgPtrType typ sc) return
 
 getFuncType :: FuncType -> CodeGen Id
 getFuncType typ = lookupFuncType typ >>= maybe (cgFuncType typ) return
@@ -41,11 +42,11 @@ cgVarType t@(TPair t1 t2) = do
     insertVarType tId t
     return tId
 
-cgPtrType :: CType -> CodeGen Id
-cgPtrType typ = do
+cgPtrType :: CType -> StorageClass -> CodeGen Id
+cgPtrType typ sc = do
     nonPtrType <- getVarType typ
-    ptrId <- addOpResult $ OpTypePointer FunctionStorage nonPtrType
-    insertPtrType ptrId typ
+    ptrId <- addOpResult $ OpTypePointer sc nonPtrType
+    insertPtrType ptrId typ sc
     return ptrId
 
 cgFuncType :: FuncType -> CodeGen Id
@@ -65,7 +66,11 @@ cgProgram (Program funcs) = do
     inputId <- freshId
     vertexMainId <- freshId
     addOp $ OpEntryPoint VertexShader vertexMainId "vertex" [inputId]
-    -- TODO: generate OpVariable global variables for the inputs and outputs of the shader
+
+    let inType = ST.TVec (ST.TInt 32 Unsigned)
+
+    inputType <- getPtrType TInt InputStorage
+    appendInstr $ InstructionWithResult inputId $ OpVariable inputType InputStorage Nothing
 
 
 cgFunc :: FuncDef -> CodeGen ()
@@ -102,11 +107,11 @@ cgExpr (MkPair e1 e2 typ) scope = do
     e1Id <- cgExpr e1 scope
     e2Id <- cgExpr e2 scope
     pairType <- getVarType typ
-    pairPtrType <- getPtrType typ
+    pairPtrType <- getPtrType typ FunctionStorage
     pairPtr <- addOpResult $ OpVariable pairPtrType FunctionStorage Nothing
     let (TPair ltype rtype) = typ
-    ltypePtr <- getPtrType ltype
-    rtypePtr <- getPtrType rtype
+    ltypePtr <- getPtrType ltype FunctionStorage
+    rtypePtr <- getPtrType rtype FunctionStorage
     intType <- getVarType TInt
     const0 <- addOpResult $ OpConstant intType (IntLit 0)
     const1 <- addOpResult $ OpConstant intType (IntLit 1)
@@ -117,10 +122,10 @@ cgExpr (MkPair e1 e2 typ) scope = do
     addOpResult $ OpLoad pairType pairPtr NormalMemAccess
 cgExpr (DePair (var1, var2) (ltype, rtype) pairExpr continuation _) scope = do
     pairExprId <- cgExpr pairExpr scope
-    pairPtrType <- getPtrType $ TPair ltype rtype
+    pairPtrType <- getPtrType (TPair ltype rtype) FunctionStorage
     pairVar <- addOpResult $ OpVariable pairPtrType FunctionStorage (Just pairExprId)
-    ltypePtr <- getPtrType ltype
-    rtypePtr <- getPtrType rtype
+    ltypePtr <- getPtrType ltype FunctionStorage
+    rtypePtr <- getPtrType rtype FunctionStorage
     intType <- getVarType TInt
     const0 <- addOpResult $ OpConstant intType (IntLit 0)
     const1 <- addOpResult $ OpConstant intType (IntLit 1)

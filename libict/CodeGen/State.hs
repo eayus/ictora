@@ -6,6 +6,7 @@ import Core.Type
 import Core.Lang
 import SpirV.Lang
 import SpirV.CodeGen
+import SpirV.Options (StorageClass)
 
 -- This module contains the types which hold state during code generation. This
 -- mainly encompasses the mapping of 'Core' language identifiers to 'Spir-V'
@@ -13,7 +14,7 @@ import SpirV.CodeGen
 
 data IdMap = IdMap
     { varTypes :: [(CType, Id)]
-    , ptrTypes :: [(CType, Id)]
+    , ptrTypes :: [((CType, StorageClass), Id)]
     , funcTypes :: [(FuncType, Id)]
     , functions :: [(FuncIdentifier, Id)] }
 
@@ -52,8 +53,8 @@ freshId = do
 lookupVarType :: CType -> CodeGen (Maybe Id)
 lookupVarType typ = (lookup typ) . varTypes . idMap <$> get
 
-lookupPtrType :: CType -> CodeGen (Maybe Id)
-lookupPtrType typ = (lookup typ) . ptrTypes . idMap <$> get
+lookupPtrType :: CType -> StorageClass -> CodeGen (Maybe Id)
+lookupPtrType typ sc = (lookup (typ, sc)) . ptrTypes . idMap <$> get
 
 lookupFuncType :: FuncType -> CodeGen (Maybe Id)
 lookupFuncType typ = (lookup typ) . funcTypes . idMap <$> get
@@ -65,8 +66,8 @@ lookupFunction func = (lookup func) . functions . idMap <$> get
 insertVarType :: Id -> CType -> CodeGen ()
 insertVarType typId typ = modify $ \st -> st { idMap = (idMap st) { varTypes = (typ, typId) : varTypes (idMap st) } }
 
-insertPtrType :: Id -> CType -> CodeGen ()
-insertPtrType typId typ = modify $ \st -> st { idMap = (idMap st) { ptrTypes = (typ, typId) : ptrTypes (idMap st) } }
+insertPtrType :: Id -> CType -> StorageClass -> CodeGen ()
+insertPtrType typId typ sc = modify $ \st -> st { idMap = (idMap st) { ptrTypes = ((typ, sc), typId) : ptrTypes (idMap st) } }
 
 insertFuncType :: Id -> FuncType -> CodeGen ()
 insertFuncType typId typ = modify $ \st -> st { idMap = (idMap st) { funcTypes = (typ, typId) : funcTypes (idMap st) } }
