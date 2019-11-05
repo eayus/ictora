@@ -1,10 +1,13 @@
 module CodeGen.State where
 
-import Control.Monad.State.Lazy
+import prelude hiding (lookup)
 
-import Core.Type
+import Control.Monad.State.Lazy
+import qualified Data.HashMap.Strict
+
 import Core.Lang
 import SpirV.Lang
+import SpirV.Type
 import SpirV.CodeGen
 import SpirV.Options (StorageClass)
 
@@ -13,10 +16,9 @@ import SpirV.Options (StorageClass)
 -- identifiers.
 
 data IdMap = IdMap
-    { varTypes :: [(CType, Id)]
-    , ptrTypes :: [((CType, StorageClass), Id)]
-    , funcTypes :: [(FuncType, Id)]
-    , functions :: [(FuncIdentifier, Id)] }
+    { varTypes :: HashMap VarType Id
+    , funcTypes :: HashMap FuncType Id
+    , functions :: HashMap FuncIdentifier Id }
 
 data IdGenerator = IdGenerator Int -- Uses an internal integer counter to generate fresh Ids
 
@@ -27,10 +29,10 @@ data CGState = CGState
 
 type CodeGen = State CGState
 
-type LocalScope = [(VarIdentifier, Id)]
+type LocalScope = HashMap VarIdentifier Id
 
 initialCGState :: CGState
-initialCGState = CGState (IdMap [] [] [] []) [] (IdGenerator 0)
+initialCGState = CGState (IdMap empty empty empty) [] (IdGenerator 0)
 
 codeGen :: CodeGen a -> CGState
 codeGen st = execState st initialCGState 
@@ -50,11 +52,8 @@ freshId = do
     put $ st { idGen = newIdGen }
     return newId
 
-lookupVarType :: CType -> CodeGen (Maybe Id)
+lookupVarType :: VarType -> CodeGen (Maybe Id)
 lookupVarType typ = (lookup typ) . varTypes . idMap <$> get
-
-lookupPtrType :: CType -> StorageClass -> CodeGen (Maybe Id)
-lookupPtrType typ sc = (lookup (typ, sc)) . ptrTypes . idMap <$> get
 
 lookupFuncType :: FuncType -> CodeGen (Maybe Id)
 lookupFuncType typ = (lookup typ) . funcTypes . idMap <$> get
@@ -63,14 +62,11 @@ lookupFunction :: FuncIdentifier -> CodeGen (Maybe Id)
 lookupFunction func = (lookup func) . functions . idMap <$> get
 
 
-insertVarType :: Id -> CType -> CodeGen ()
-insertVarType typId typ = modify $ \st -> st { idMap = (idMap st) { varTypes = (typ, typId) : varTypes (idMap st) } }
+insertVarType :: VarType -> Id -> CodeGen ()
+insertVarType typ typId = modify $ \st -> st { idMap = (idMap st) { varTypes = insert typ typId (varTypes (idMap st)) } }
 
-insertPtrType :: Id -> CType -> StorageClass -> CodeGen ()
-insertPtrType typId typ sc = modify $ \st -> st { idMap = (idMap st) { ptrTypes = ((typ, sc), typId) : ptrTypes (idMap st) } }
-
-insertFuncType :: Id -> FuncType -> CodeGen ()
-insertFuncType typId typ = modify $ \st -> st { idMap = (idMap st) { funcTypes = (typ, typId) : funcTypes (idMap st) } }
+insertFuncType :: FuncType -> Id -> CodeGen ()
+insertFuncType typ typId = modify $ \st -> st { idMap = (idMap st) { funcTypes = insert typ typId (funcTypes (idMap st)) } }
 
 insertFunction :: Id -> FuncIdentifier -> CodeGen ()
-insertFunction funcId func = modify $ \st -> st { idMap = (idMap st) { functions = (func, funcId) : functions (idMap st) } }
+insertFunction funcId func = modify $ \st -> st { idMap = (idMap st) { functions = insert func funcId (functions (idMap st)) } }

@@ -7,8 +7,8 @@ import SpirV.Lang
 import SpirV.CodeGen
 import SpirV.Operations
 import SpirV.Options
-import qualified SpirV.Type as ST
-import Core.Type
+import qualified SpirV.Type as SV
+import qualified Core.Type as C
 import Core.Lang
 
 addOp :: Operation NoResult -> CodeGen ()
@@ -20,42 +20,58 @@ addOpResult op = do
     appendInstr $ InstructionWithResult res op
     return res
 
-getVarType :: CType -> CodeGen Id
+getVarType :: SV.VarType -> CodeGen Id
 getVarType typ = lookupVarType typ >>= maybe (cgVarType typ) return
 
-getPtrType :: CType -> StorageClass -> CodeGen Id
-getPtrType typ sc = lookupPtrType typ sc >>= maybe (cgPtrType typ sc) return
-
-getFuncType :: FuncType -> CodeGen Id
+getFuncType :: SV.FuncType -> CodeGen Id
 getFuncType typ = lookupFuncType typ >>= maybe (cgFuncType typ) return
 
-cgVarType :: CType -> CodeGen Id
-cgVarType TFunc = error "Function types not supported yet"
-cgVarType TInt = do
-    tId <- addOpResult $ OpTypeInt 32 Signed
-    insertVarType tId TInt
-    return tId
-cgVarType t@(TPair t1 t2) = do
-    t1Id <- getVarType t1
-    t2Id <- getVarType t2
-    tId <- addOpResult $ OpTypeStruct [t1Id, t2Id]
-    insertVarType tId t
-    return tId
+cgVarType :: SV.VarType -> CodeGen Id
+cgVarType typ@SV.TVoid = do
+    typeId <- addOpResult $ OpTypeVoid
+    insertVarType typ typeId
+    return typeId
+cgVarType typ@(SV.TInt width sign) = do
+    typeId <- addOpResult $ OpTypeInt width sign
+    insertVarType SV.TInt typ
+    return typeId
+cgVarType typ@SV.TBool = do
+    typeId <- addOpResult $ OpTypeBool
+    insertVarType typ typeId
+    return typeId
+cgVarType typ@(SV.TFloat width) = do
+    typeId <- addOpResult $ OpTypeFloat width
+    insertVarType typ typeId
+    return typeId
+cgVarType typ@(SV.TVec2 elemType) = do
+    elemTypeId <- getVarType elemType
+    typeId <- addOpResult $ OpTypeVector elemTypeId 2
+    insertVarType typ typeId
+    return typeId 
+cgVarType typ@(SV.TVec3 elemType) = do
+    elemTypeId <- getVarType elemType
+    typeId <- addOpResult $ OpTypeVector elemTypeId 3
+    insertVarType typ typeId
+    return typeId
+cgVarType typ@(SV.TStruct subTypes) = do
+    subTypeIds <- mapM getVarType subTypes
+    typeId <- addOpResult $ OpTypeStruct subTypeIds
+    insertVarType typ typeId
+    return typeId
+cgVarType typ@(SV.TPtr derefType sc) = do
+    derefTypeId <- getVarType derefType
+    typeId <- addOpResult $ OpTypePtr sc derefTypeId
+    insertVarType typ typeId
+    return typeId
 
-cgPtrType :: CType -> StorageClass -> CodeGen Id
-cgPtrType typ sc = do
-    nonPtrType <- getVarType typ
-    ptrId <- addOpResult $ OpTypePointer sc nonPtrType
-    insertPtrType ptrId typ sc
-    return ptrId
 
-cgFuncType :: FuncType -> CodeGen Id
-cgFuncType t@(FuncType retType paramTypes) = do
-    retTypeId <- getVarType retType
-    paramTypeIds <- mapM getVarType paramTypes
-    tId <- addOpResult $ OpTypeFunction retTypeId paramTypeIds
-    insertFuncType tId t
-    return tId
+cgFuncType :: SV.FuncType -> CodeGen Id
+cgFuncType typ@(SV.FuncType ret params) = do
+    retId <- getVarType ret
+    paramIds <- mapM getVarType params
+    typeId <- addOpResult $ OpTypeFunction retId paramIds
+    insertFuncType typ typeId
+    return typeId
 
 
 cgProgram :: Program -> CodeGen ()
@@ -67,16 +83,17 @@ cgProgram (Program funcs) = do
     vertexMainId <- freshId
     addOp $ OpEntryPoint VertexShader vertexMainId "vertex" [inputId]
 
-    let inType = ST.TVec (ST.TInt 32 Unsigned)
+    let inputType = SV.TPtr (SV.TVec3 $ SV.TInt 32 Unsigned) InputStorage
 
-    inputType <- getPtrType TInt InputStorage
-    appendInstr $ InstructionWithResult inputId $ OpVariable inputType InputStorage Nothing
+    inputTypeId <- getVarType inputType
+    appendInstr $ InstructionWithResult inputId $ OpVariable inputTypeId InputStorage Nothing
 
 
 cgFunc :: FuncDef -> CodeGen ()
 cgFunc (FuncDef funcType name params body) = do
-    retTypeId <- getVarType $ returnType funcType
-    funcTypeId <- getFuncType funcType
+    let spirvFuncType = convert funcType
+    retTypeId <- getVarType $ ret spirvFuncType
+    funcTypeId <- getFuncType spirvFuncType
 
     funcId <- addOpResult $ OpFunction retTypeId (FunctionOptions MaybeInline Pure) funcTypeId
     paramIds <- cgFuncParams $ paramTypes funcType

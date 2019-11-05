@@ -1,9 +1,9 @@
 module Core.Type where
 
-data CType
+data VarType
     = TFunc
     | TInt
-    | TPair CType CType
+    | TPair VarType VarType
     deriving (Eq, Show)
 
 data FuncType = FuncType
