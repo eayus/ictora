@@ -1,2 +1,0 @@
-f = map (\y => y) my_list
-g = add 5 3
