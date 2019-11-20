@@ -34,3 +34,11 @@ data ExecutionModel = VertexShader | FragmentShader
 
 -- Memory Model
 data MemoryModel = SimpleMem | GLSL450Mem | OpenCLMem
+
+
+
+
+Eq Signedness where
+    Signed == Signed = True
+    Unsigned == Unsigned = True
+    _ == _ = False

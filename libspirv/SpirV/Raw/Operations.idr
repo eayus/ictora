@@ -9,7 +9,9 @@ import SpirV.Raw.Misc
 data OperationType = Result | NoResult
 
 data Operation : OperationType -> Type where
-    OpTypeInt : (width : Int) -> Signedness -> Operation Result
+    OpTypeInt : (width : Nat) -> Signedness -> Operation Result
+
+    OpTypeFloat : (width : Nat) -> Operation Result
 
     OpTypeStruct : (types : List Id) -> Operation Result
 
