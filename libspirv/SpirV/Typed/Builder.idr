@@ -8,15 +8,20 @@ import SpirV.Raw.Operations
 import SpirV.Raw.Options
 import SpirV.Raw.Misc
 
+%access public export
+
 record BuilderState where
     constructor MkBS
     typeDefs : List Instruction
-    typeMap : TypeMap
     code : List Instruction
+    typeMap : TypeMap
     nextId : Int
 
 Builder : Type -> Type
 Builder = State BuilderState
+
+initBS : BuilderState
+initBS = MkBS [] [] (MkTypeMap [] []) 0
 
 freshId : Builder Id
 freshId = do
@@ -49,25 +54,91 @@ addTypeOp {a = Result} op = do
     pure newId
 
 
-cgType : VarType a -> Builder Id
-cgType vt = do
-    res <- case vt of
-        (TInt width sign) => addOp $ OpTypeInt width sign
-        (TFloat width) => addOp $ OpTypeFloat width
-    modify $ record { typeMap $= insertType vt res }
+mutual
+    cgType : VarType a -> Builder Id
+    cgType vt = do
+        res <- case vt of
+            (TInt width sign) => addTypeOp $ OpTypeInt width sign
+            (TFloat width) => addTypeOp $ OpTypeFloat width
+            (TStruct subTypes) => do
+                subTypeIds <- traverse (\(_ ** subType) => getType subType) subTypes
+                addTypeOp $ OpTypeStruct subTypeIds
+        modify $ record { typeMap $= insertType vt res }
+        pure res
+
+    getType : VarType a -> Builder Id
+    getType t = do
+        tm <- typeMap <$> get
+        case lookupType t tm of
+            Just i => pure i
+            Nothing => cgType t
+
+cgFuncType : FuncType -> Builder Id
+cgFuncType ft = do
+    retTypeId <- getType (retType ft)
+    paramTypeIds <- traverse (\(_ ** paramType) => getType paramType) (paramTypes ft)
+    res <- addTypeOp $ OpTypeFunction retTypeId paramTypeIds
+    modify $ record { typeMap $= insertFuncType ft res }
     pure res
 
-getType : VarType a -> Builder Id
-getType t = do
+getFuncType : FuncType -> Builder Id
+getFuncType ft = do
     tm <- typeMap <$> get
-    case lookupType t tm of
-        Just i => pure i
-        Nothing => cgType t
-
+    case lookupFuncType ft tm of
+         Just i => pure i
+         Nothing=> cgFuncType ft
 
 -- External Interface
 
-constant : (t : VarType KScalar) -> IdrisVarType t -> Builder Id
+data Variable = MkVariable Id (VarType t)
+
+data Value = MkValue Id
+
+
+runBuilder : Builder a -> Program
+runBuilder builder = let (MkBS types code _ _) = execState builder initBS in types ++ code
+
+setCapabilities : List Capability -> Builder ()
+setCapabilities = ignore . traverse (addOp . OpCapability)
+
+setMemModel : AddressingModel -> MemoryModel -> Builder ()
+setMemModel addr mem = addOp $ OpMemoryModel addr mem
+
+functionWithId : FuncType -> FunctionOptions -> Id -> Builder Id
+functionWithId ft opts ident = do
+    retTypeId <- getType $ retType ft
+    funcTypeId <- getFuncType ft
+    modify $ addInstr $ MkInstrWithRes ident $ OpFunction retTypeId opts funcTypeId
+    pure ident
+
+function : FuncType -> FunctionOptions -> Builder Id
+function ft opts = freshId >>= functionWithId ft opts
+
+constant : (t : VarType KScalar) -> IdrisVarType t -> Builder Value
 constant type val = do
     typeId <- getType type
-    addTypeOp $ OpConstant typeId $ scalarToLit type val
+    ident <- addTypeOp $ OpConstant typeId $ scalarToLit type val
+    pure $ MkValue ident
+
+var : VarType t -> StorageClass -> Builder Variable
+var vt sc = do
+    ptrTypeId <- getType $ TPtr vt
+    ident <- addOp $ OpVariable ptrTypeId sc Nothing
+    pure $ MkVariable ident vt
+
+readVar : Variable -> MemoryAccessType -> Builder Value
+readVar (MkVariable ident vt) access = do
+    typeId <- getType vt
+    ident <- addOp $ OpLoad typeId ident access
+    pure $ MkValue ident
+
+writeVar : Variable -> Value -> MemoryAccessType -> Builder ()
+writeVar (MkVariable var _) (MkValue val) access = addOp $ OpStore var val access
+
+fieldVar : Variable -> Nat -> Builder Variable
+fieldVar (MkVariable var (TStruct subTypes)) n = do
+    let (Just (_ ** subType)) = index' n subTypes
+    (MkValue index) <- constant (TInt 32 Unsigned) n
+    subTypePtrId <- getType $ TPtr subType
+    ident <- addOp $ OpAccessChain subTypePtrId var [index]
+    pure $ MkVariable ident subType

@@ -1,0 +1,9 @@
+package libspirv
+
+modules = SpirV.Raw.Misc
+        , SpirV.Raw.Operations
+        , SpirV.Raw.Options
+        , SpirV.Raw.Program
+	, SpirV.Typed.Builder
+	, SpirV.Typed.Type
+	, SpirV.Typed.TypeMap
