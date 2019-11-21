@@ -63,6 +63,9 @@ mutual
             (TStruct subTypes) => do
                 subTypeIds <- traverse (\(_ ** subType) => getType subType) subTypes
                 addTypeOp $ OpTypeStruct subTypeIds
+            (TPtr derefType) => do
+                derefTypeId <- getType derefType
+                addTypeOp $ OpTypePointer FunctionStorage derefTypeId
         modify $ record { typeMap $= insertType vt res }
         pure res
 
@@ -96,7 +99,7 @@ data Value = MkValue Id
 
 
 runBuilder : Builder a -> Program
-runBuilder builder = let (MkBS types code _ _) = execState builder initBS in types ++ code
+runBuilder builder = let (MkBS types code _ _) = execState builder initBS in (reverse types) ++ (reverse code)
 
 setCapabilities : List Capability -> Builder ()
 setCapabilities = ignore . traverse (addOp . OpCapability)
@@ -117,7 +120,7 @@ function ft opts = freshId >>= functionWithId ft opts
 constant : (t : VarType KScalar) -> IdrisVarType t -> Builder Value
 constant type val = do
     typeId <- getType type
-    ident <- addTypeOp $ OpConstant typeId $ scalarToLit type val
+    ident <- addOp $ OpConstant typeId $ scalarToLit type val
     pure $ MkValue ident
 
 var : VarType t -> StorageClass -> Builder Variable
