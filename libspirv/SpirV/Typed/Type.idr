@@ -14,7 +14,11 @@ data VarType : TypeKind -> Type where
     TInt : (width : Nat) -> Signedness -> VarType KScalar
     TFloat : (width : Nat) -> VarType KScalar
     TStruct : List (t : TypeKind ** VarType t) -> VarType KComposite
+    TBool : VarType KScalar
     TPtr : VarType t -> VarType KPtr
+
+varTypeToDPair : {t : TypeKind} -> VarType t -> (t : TypeKind ** VarType t)
+varTypeToDPair {t} vt = (t ** vt)
 
 
 -- Type of functions
@@ -28,12 +32,14 @@ IdrisVarType : VarType KScalar -> Type
 IdrisVarType (TInt _ Signed) = Int
 IdrisVarType (TInt _ Unsigned) = Nat
 IdrisVarType (TFloat _) = Double
+IdrisVarType TBool = Bool
 
 
 scalarToLit : (t : VarType KScalar) -> IdrisVarType t -> Literal
 scalarToLit (TInt _ Signed) = IntLit
 scalarToLit (TInt _ Unsigned) = IntLit . cast
 scalarToLit (TFloat _) = FloatLit
+scalarToLit TBool = BoolLit
 
 
 Eq TypeKind where
@@ -47,6 +53,8 @@ varTypeEq : VarType a -> VarType b -> Bool
 varTypeEq (TInt w1 s1) (TInt w2 s2) = (w1 == w2) && (s1 == s2)
 varTypeEq (TFloat w1) (TFloat w2) = (w1 == w2)
 varTypeEq (TStruct _) (TStruct _) = True
+varTypeEq TBool TBool = True
+varTypeEq (TPtr t1) (TPtr t2) = varTypeEq t1 t2
 varTypeEq _ _  = False
 
 vtDpEq : (t : TypeKind ** VarType t) -> (s : TypeKind ** VarType s) -> Bool

@@ -11,3 +11,6 @@ data Instruction : Type where
     
 Program : Type
 Program = List Instruction
+
+Code : Type
+Code = List Instruction

@@ -19,12 +19,13 @@ ToAsm Literal where
     toAsm (FloatLit n) = show n
 
 ToAsm Signedness where
-    toAsm Signed = "Signed"
-    toAsm Unsigned = "Unsigned"
+    toAsm Signed = "1"
+    toAsm Unsigned = "0"
 
 ToAsm ShouldInline where
     toAsm Inline = "Inline"
     toAsm NoInline = "DontInline"
+    toAsm MaybeInline = "None"
 
 ToAsm Purity where
     toAsm Impure = "None"
@@ -32,7 +33,10 @@ ToAsm Purity where
     toAsm Const = "Const"
 
 ToAsm FunctionOptions where
-    toAsm opts = toAsm (shouldInline opts) ++ " | " ++ toAsm (purity opts)
+    toAsm opts = let
+        s1 = toAsm $ shouldInline opts
+        s2 = toAsm $ purity opts
+        in s1 ++ "|" ++ s2
 
 ToAsm StorageClass where
     toAsm FunctionStorage = "Function"
@@ -63,6 +67,7 @@ ToAsm MemoryModel where
 ToAsm (Operation a) where
     toAsm (OpTypeInt width sign) = unwords ["OpTypeInt", show width, toAsm sign]
     toAsm (OpTypeFloat width) = unwords ["OpTypeFloat", show width]
+    toAsm OpTypeBool = "OpTypeBool"
     toAsm (OpTypeStruct ids) = unwords ("OpTypeStruct" :: (map toAsm ids))
     toAsm (OpTypeFunction ret param) = unwords $ "OpTypeFunction" :: toAsm ret :: map toAsm param
     toAsm (OpTypePointer sc deref) = unwords ["OpTypePointer", toAsm sc, toAsm deref]
@@ -80,6 +85,13 @@ ToAsm (Operation a) where
     toAsm (OpCapability cap) = unwords ["OpCapability", toAsm cap]
     toAsm (OpMemoryModel addr mem) = unwords ["OpMemoryModel", toAsm addr, toAsm mem]
     toAsm (OpEntryPoint exec func name inouts) = unwords $ "OpEntryPoint" :: toAsm exec :: toAsm func :: toAsm name :: map toAsm inouts
+    toAsm OpLabel = "OpLabel"
+    toAsm OpReturn = "OpReturn"
+    toAsm (OpIAdd type lhs rhs) = unwords ["OpIAdd", toAsm type, toAsm lhs, toAsm rhs]
+    toAsm (OpFAdd type lhs rhs) = unwords ["OpFAdd", toAsm type, toAsm lhs, toAsm rhs]
+    toAsm (OpISub type lhs rhs) = unwords ["OpISub", toAsm type, toAsm lhs, toAsm rhs]
+    toAsm (OpFSub type lhs rhs) = unwords ["OpFSub", toAsm type, toAsm lhs, toAsm rhs]
+    toAsm (OpSelect type cond ifTrue ifFalse) = unwords $ "OpSelect" :: map toAsm [type, cond, ifTrue, ifFalse]
 
 ToAsm Instruction where
     toAsm (MkInstr op) = toAsm op

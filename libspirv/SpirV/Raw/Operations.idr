@@ -13,6 +13,8 @@ data Operation : OperationType -> Type where
 
     OpTypeFloat : (width : Nat) -> Operation Result
 
+    OpTypeBool : Operation Result
+
     OpTypeStruct : (types : List Id) -> Operation Result
 
     OpTypeFunction : (returnType : Id) -> (paramTypes : List Id) -> Operation Result
@@ -33,6 +35,8 @@ data Operation : OperationType -> Type where
 
     OpFunctionParameter : (type : Id) -> Operation Result
 
+    OpReturn : Operation NoResult
+
     OpReturnValue : (val : Id) -> Operation NoResult
 
     OpFunctionEnd : Operation NoResult
@@ -44,3 +48,17 @@ data Operation : OperationType -> Type where
     OpMemoryModel : AddressingModel -> MemoryModel -> Operation NoResult
 
     OpEntryPoint : ExecutionModel -> (func : Id) -> (name : String) -> (inOutVars : List Id) -> Operation NoResult
+
+    OpLabel : Operation Result
+
+    OpIAdd : (type : Id) -> (lhs : Id) -> (rhs : Id) -> Operation Result
+
+    OpISub : (type : Id) -> (lhs : Id) -> (rhs : Id) -> Operation Result
+
+    OpFAdd : (type : Id) -> (lhs : Id) -> (rhs : Id) -> Operation Result
+
+    OpFSub: (type : Id) -> (lhs : Id) -> (rhs : Id) -> Operation Result
+
+    OpLogicalNot : (type : Id) -> (operand : Id) -> Operation Result
+
+    OpSelect : (type : Id) -> (cond : Id) -> (ifTrue : Id) -> (ifFalse : Id) -> Operation Result

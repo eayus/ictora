@@ -1,6 +1,6 @@
 package ictc
 
-opts = "-i ../libspirv"
+opts = "-i ../libspirv -i ../libict"
 
 executable = ictc
 main = Main

@@ -7,4 +7,4 @@ Id : Type
 Id = String
 
 -- 
-data Literal = IntLit Int | FloatLit Double
+data Literal = IntLit Int | FloatLit Double | BoolLit Bool
