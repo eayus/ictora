@@ -15,6 +15,7 @@ data VarType : TypeKind -> Type where
     TFloat : (width : Nat) -> VarType KScalar
     TStruct : List (t : TypeKind ** VarType t) -> VarType KComposite
     TBool : VarType KScalar
+    TVoid : VarType KVoid
     TPtr : VarType t -> VarType KPtr
 
 varTypeToDPair : {t : TypeKind} -> VarType t -> (t : TypeKind ** VarType t)

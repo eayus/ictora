@@ -26,7 +26,8 @@ record Module where
     memModel : MemoryModel
     addrModel : AddressingModel
     funcs : List Function
-    mainIndex : Nat
+    vertEntry : Function
+    fragEntry : Function
 
 
 record BuilderState where
@@ -104,13 +105,17 @@ functionToCode (MkFunction ident type params opts bodyCode) = do
     pure $ [x] ++ ys ++ bodyCode ++ [z]
 
 moduleToCode : Module -> Builder Code
-moduleToCode (MkModule caps mem addr funcs i) = do
+moduleToCode (MkModule caps mem addr funcs vert frag) = do
     let capsCode = MkInstr . OpCapability <$> caps
     let memCode = MkInstr $ OpMemoryModel addr mem
+
+    let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" []
+                    , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" [] ]
+
     funcCode <- traverse functionToCode funcs
     staticCode <- BuilderState.code <$> get
 
-    pure $ capsCode ++ [memCode] ++ staticCode ++ concat funcCode
+    pure $ capsCode ++ [memCode] ++ entryCode ++ staticCode ++ concat funcCode
 
 build : Builder Module -> Program
 build builder = evalState (builder >>= moduleToCode) initBS

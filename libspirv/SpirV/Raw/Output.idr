@@ -77,6 +77,8 @@ ToAsm (Operation a) where
     toAsm (OpLoad type ptr access) = unwords ["OpLoad", toAsm type, toAsm ptr, toAsm access]
     toAsm (OpStore var val access) = unwords ["OpStore", toAsm var, toAsm val, toAsm access]
     toAsm (OpConstant type lit) = unwords ["OpConstant", toAsm type, toAsm lit]
+    toAsm (OpConstantTrue type) = unwords ["OpConstantTrue", toAsm type]
+    toAsm (OpConstantFalse type) = unwords ["OpConstantFalse", toAsm type]
     toAsm (OpFunction retType opts funcType) = unwords ["OpFunction", toAsm retType, toAsm opts, toAsm funcType]
     toAsm (OpFunctionParameter type) = unwords ["OpFunctionParameter", toAsm type]
     toAsm (OpReturnValue val) = unwords ["OpReturnValue", toAsm val]
@@ -84,7 +86,7 @@ ToAsm (Operation a) where
     toAsm (OpFunctionCall ret func param) = unwords $ "OpFunctionCall" :: toAsm ret :: toAsm func :: map toAsm param
     toAsm (OpCapability cap) = unwords ["OpCapability", toAsm cap]
     toAsm (OpMemoryModel addr mem) = unwords ["OpMemoryModel", toAsm addr, toAsm mem]
-    toAsm (OpEntryPoint exec func name inouts) = unwords $ "OpEntryPoint" :: toAsm exec :: toAsm func :: toAsm name :: map toAsm inouts
+    toAsm (OpEntryPoint exec func name inouts) = unwords $ "OpEntryPoint" :: toAsm exec :: toAsm func :: show name :: map toAsm inouts
     toAsm OpLabel = "OpLabel"
     toAsm OpReturn = "OpReturn"
     toAsm (OpIAdd type lhs rhs) = unwords ["OpIAdd", toAsm type, toAsm lhs, toAsm rhs]

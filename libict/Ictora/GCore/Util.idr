@@ -1,0 +1,31 @@
+module Ictora.GCore.ToSpirV
+
+import public Ictora.GCore.Lang
+import public SpirV.Typed.Builder
+import public SpirV.Raw.Operations
+
+%access public export
+
+SProgram : Type
+SProgram = SpirV.Raw.Program.Program
+
+SBuilder : Type -> Type
+SBuilder = SpirV.Typed.Builder.Builder
+
+SModule : Type
+SModule = SpirV.Typed.Builder.Module
+
+SFunction : Type
+SFunction = SpirV.Typed.Builder.Function
+
+MkSModule : List Capability -> MemoryModel -> AddressingModel -> List SFunction -> SFunction -> SFunction -> SModule
+MkSModule = SpirV.Typed.Builder.MkModule
+
+SFuncType : Type
+SFuncType = SpirV.Typed.Type.FuncType
+
+MkSFuncType : VarType a -> List (t : TypeKind ** VarType t) -> SFuncType
+MkSFuncType = SpirV.Typed.Type.MkFuncType
+
+MkSFunction : Id -> SFuncType -> List Id -> FunctionOptions -> Code -> SFunction
+MkSFunction = SpirV.Typed.Builder.MkFunction

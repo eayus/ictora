@@ -31,6 +31,10 @@ data Operation : OperationType -> Type where
 
     OpConstant : (type : Id) -> Literal -> Operation Result
 
+    OpConstantTrue : (type : Id) -> Operation Result
+
+    OpConstantFalse : (type : Id) -> Operation Result
+
     OpFunction : (retType : Id) -> FunctionOptions -> (funcType : Id) -> Operation Result
 
     OpFunctionParameter : (type : Id) -> Operation Result

@@ -1,0 +1,8 @@
+package libict
+
+opts = "-i ../libspirv"
+
+modules = Ictora.GCore.Lang
+	, Ictora.GCore.ToSpirV
+	, Ictora.GCore.Util
+	, Ictora.Util
