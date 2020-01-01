@@ -94,8 +94,9 @@ buildExpr (GLet name val cont) scope = do
     pure (contId, xs ++ ys)
     
 
-buildFunction : GFunction -> SBuilder SFunction
-buildFunction (MkGFunction type name params body) = do
+
+buildNormalFunction : GFunction -> SBuilder SFunction
+buildNormalFunction (MkGFunction type name params body) = do
     funcId <- freshId
     let opts = MkFunctionOptions Inline Pure
     paramIds <- traverse (const freshId) params
@@ -104,6 +105,24 @@ buildFunction (MkGFunction type name params body) = do
     labelId <- freshId
     let label = MkInstrWithRes labelId OpLabel
     pure $ MkSFunction funcId (convertFuncType type) paramIds opts ([label] ++ bodyCode ++ [ret])
+
+buildEntryFunction : GFunction -> SBuilder SFunction
+buildEntryFunction (MkGFunction type name params body) = do
+    funcId <- freshId
+    let opts = MkFunctionOptions Inline Pure
+    paramIds <- traverse (const freshId) params
+    (res, bodyCode) <- buildExpr body $ zip params paramIds
+    let ret = MkInstr $ OpReturnValue res
+    labelId <- freshId
+    let label = MkInstrWithRes labelId OpLabel
+    pure $ MkSFunction funcId (convertFuncType type) paramIds opts ([label] ++ bodyCode ++ [ret])
+
+buildFunction : GFunction -> SBuilder SFunction
+buildFunction func = case GFunction.name func of
+                          "vert" => buildEntryFunction func
+                          "frag" => buildEntryFunction func
+                          _ => buildNormalFunction func
+
 
 buildModule : GProgram -> SBuilder SModule
 buildModule funcs = do

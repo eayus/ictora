@@ -21,6 +21,8 @@ data Operation : OperationType -> Type where
 
     OpTypePointer : StorageClass -> (derefType : Id) -> Operation Result
 
+    OpTypeVoid : Operation Result
+
     OpVariable : (ptrType : Id) -> StorageClass -> (initVal : Maybe Id) -> Operation Result
 
     OpAccessChain : (ptrSubType : Id) -> (struct : Id) -> (fieldIndices : List Id) -> Operation Result

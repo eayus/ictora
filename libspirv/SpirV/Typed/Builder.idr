@@ -65,6 +65,7 @@ mutual
             (TPtr derefType) => do
                 derefTypeId <- getType derefType
                 addStaticInstr $ MkInstrWithRes res $ OpTypePointer FunctionStorage derefTypeId
+            TVoid => addStaticInstr $ MkInstrWithRes res $ OpTypeVoid
         modify $ record { types $= insertType vt res }
         pure res
 
@@ -108,6 +109,10 @@ moduleToCode : Module -> Builder Code
 moduleToCode (MkModule caps mem addr funcs vert frag) = do
     let capsCode = MkInstr . OpCapability <$> caps
     let memCode = MkInstr $ OpMemoryModel addr mem
+
+    -- Input and Output variables
+    --vertexInputType <- getType $ TStruct [(), (KScalar ** TFloat 32), (KScalar ** TFloat 32)]
+    --let annotateCode = [ MkInstr $ OpMemberDecorate 
 
     let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" []
                     , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" [] ]

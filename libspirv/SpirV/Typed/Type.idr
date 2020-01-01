@@ -35,12 +35,11 @@ IdrisVarType (TInt _ Unsigned) = Nat
 IdrisVarType (TFloat _) = Double
 IdrisVarType TBool = Bool
 
-
-scalarToLit : (t : VarType KScalar) -> IdrisVarType t -> Literal
+{--scalarToLit : (t : VarType KScalar) -> IdrisVarType t -> Literal
 scalarToLit (TInt _ Signed) = IntLit
 scalarToLit (TInt _ Unsigned) = IntLit . cast
 scalarToLit (TFloat _) = FloatLit
-scalarToLit TBool = BoolLit
+scalarToLit TBool = BoolLit--}
 
 
 Eq TypeKind where
