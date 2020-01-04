@@ -1,43 +1,58 @@
 module Ictora.GCore.Lang
 
-import public Ictora.GCore.Type
+import public Ictora.GCore.Types
+import Ictora.Util
+import Data.List
+import Data.Fin
 
 %access public export
 
-Identifier : Type
-Identifier = String
+GIdentifier : Type
+GIdentifier = String
 
-data GLiteral = GLInt Int | GLBool Bool | GLFloat Double
+GScope : Type
+GScope = Assoc GIdentifier GTy
 
-mutual
-    data GPrimitiveOp
-        = GAdd GExpr GExpr
-        | GFAdd GExpr GExpr
-        | GSub GExpr GExpr
-        | GFSub GExpr GExpr
-        | GNot GExpr
+data GExpr : GVarTy -> GScope -> Type where
+    GLit : interpTy type -> GExpr type scope
+    GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type scope
+    GLet : (name : GIdentifier)
+       -> GExpr varType scope
+       -> GExpr exprType ((name, GTyVar varType) :: scope)
+       -> GExpr exprType scope
 
-    data GExpr
-        = GLit GLiteral
-        | GVar Identifier
-        | GFuncCall Identifier (List GExpr) GExprType 
-        | GIf GExpr GExpr GExpr GExprType
-        | GPrimOp GPrimitiveOp
-        | GLet Identifier GExpr GExpr
-
-
-record GFunction where
+record GFunction (type : GFuncTy) (scope : GScope) where
     constructor MkGFunction
-    type : GFuncType
-    name : Identifier
-    params : List Identifier
-    body : GExpr
+    name : GIdentifier
+    body : GExpr (ret type) scope
+
+funcType : {ty : GFuncTy} -> GFunction ty _ -> GFuncTy
+funcType {ty} _ = ty
+
+data GProgram : GScope -> Type where
+    Nil : GProgram scope
+    Cons : (f : GFunction type scope) -> GProgram ((name f, GTyFunc type) :: scope) -> GProgram scope
 
 
-GProgram : Type
-GProgram = List GFunction
+-- In the program, does a function this name and type exist?
+data FuncExists : GProgram scope -> GIdentifier -> GFuncTy -> Type where
+    Here : FuncExists (Cons func program) (name func) (funcType func)
+    There : FuncExists program name type -> FuncExists (Cons topFunc program) name type
 
 
-testProg : GProgram
-testProg = [ MkGFunction (MkGFuncType GTBool []) "vert" [] (GLit (GLBool True)) 
-           , MkGFunction (MkGFuncType GTInt []) "frag" [] (GLit (GLInt 9)) ]
+record GCompleteProgram where
+    constructor MkGCompleteProgram
+    prog : GProgram []
+    vertProof : FuncExists prog "vert" (MkGFuncTy GTInt [GTInt])
+    fragProof : FuncExists prog "frag" (MkGFuncTy GTInt [GTInt])
+
+
+numFuncs : GProgram _ -> Nat
+numFuncs Nil = 0
+numFuncs (Cons _ prog) = succ $ numFuncs prog
+
+
+funcIndex : (prog : GProgram _) -> FuncExists prog name type -> Fin (numFuncs prog)
+funcIndex Nil p impossible
+funcIndex (Cons f fs) Here = 0
+funcIndex (Cons f fs) (There p) = FS $ funcIndex fs p

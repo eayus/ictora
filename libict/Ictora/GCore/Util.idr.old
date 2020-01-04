@@ -1,8 +1,9 @@
 module Ictora.GCore.ToSpirV
 
-import public Ictora.GCore.Lang
 import public SpirV.Typed.Builder
 import public SpirV.Raw.Operations
+
+import Data.Vect
 
 %access public export
 
@@ -18,7 +19,7 @@ SModule = SpirV.Typed.Builder.Module
 SFunction : Type
 SFunction = SpirV.Typed.Builder.Function
 
-MkSModule : List Capability -> MemoryModel -> AddressingModel -> List SFunction -> SFunction -> SFunction -> SModule
+MkSModule : List Capability -> MemoryModel -> AddressingModel -> (len : Nat ** Vect len SFunction) -> SFunction -> SFunction -> SModule
 MkSModule = SpirV.Typed.Builder.MkModule
 
 SFuncType : Type

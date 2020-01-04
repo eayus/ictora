@@ -8,6 +8,9 @@ import public SpirV.Raw.Operations
 import public SpirV.Raw.Options
 import public SpirV.Raw.Misc
 
+import Data.Vect
+import Data.Fin
+
 %access public export
 
 -- New
@@ -25,9 +28,10 @@ record Module where
     caps : List Capability
     memModel : MemoryModel
     addrModel : AddressingModel
-    funcs : List Function
-    vertEntry : Function
-    fragEntry : Function
+    numFuncs : Nat
+    funcs : Vect numFuncs Function
+    vertIndex : Fin numFuncs
+    fragIndex : Fin numFuncs
 
 
 record BuilderState where
@@ -51,7 +55,15 @@ freshId = do
 addStaticInstr : Instruction -> Builder ()
 addStaticInstr instr = modify $ record { BuilderState.code $= (++ [instr]) }
 
+
 mutual
+    getType : VarType a -> Builder Id
+    getType t = do
+        tm <- types <$> get
+        case lookupType t tm of
+            Just i => pure i
+            Nothing => cgType t
+
     cgType : VarType a -> Builder Id
     cgType vt = do
         res <- freshId
@@ -59,22 +71,23 @@ mutual
             (TInt width sign) => addStaticInstr $ MkInstrWithRes res $ OpTypeInt width sign
             (TFloat width) => addStaticInstr $ MkInstrWithRes res $ OpTypeFloat width
             (TStruct subTypes) => do
-                subTypeIds <- traverse (\(_ ** subType) => getType subType) subTypes
+                subTypeIds <- cgTypeList subTypes
                 addStaticInstr $ MkInstrWithRes res $ OpTypeStruct subTypeIds
             TBool => addStaticInstr $ MkInstrWithRes res $ OpTypeBool
             (TPtr derefType) => do
-                derefTypeId <- getType derefType
+                derefTypeId <- getType $ derefType
                 addStaticInstr $ MkInstrWithRes res $ OpTypePointer FunctionStorage derefTypeId
             TVoid => addStaticInstr $ MkInstrWithRes res $ OpTypeVoid
         modify $ record { types $= insertType vt res }
         pure res
 
-    getType : VarType a -> Builder Id
-    getType t = do
-        tm <- types <$> get
-        case lookupType t tm of
-            Just i => pure i
-            Nothing => cgType t
+    cgTypeList : List (t : TypeKind ** VarType t) -> Builder (List Id)
+    cgTypeList [] = pure []
+    cgTypeList ((_ ** x) :: xs) = do
+        xType <- getType x
+        xsType <- cgTypeList xs
+        pure $ xType :: xsType
+
 
 cgFuncType : FuncType -> Builder Id
 cgFuncType ft = do
@@ -106,13 +119,16 @@ functionToCode (MkFunction ident type params opts bodyCode) = do
     pure $ [x] ++ ys ++ bodyCode ++ [z]
 
 moduleToCode : Module -> Builder Code
-moduleToCode (MkModule caps mem addr funcs vert frag) = do
+moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex fragIndex) = do
     let capsCode = MkInstr . OpCapability <$> caps
     let memCode = MkInstr $ OpMemoryModel addr mem
 
     -- Input and Output variables
     --vertexInputType <- getType $ TStruct [(), (KScalar ** TFloat 32), (KScalar ** TFloat 32)]
     --let annotateCode = [ MkInstr $ OpMemberDecorate 
+
+    let vert = index vertIndex funcs
+    let frag = index fragIndex funcs
 
     let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" []
                     , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" [] ]

@@ -1,5 +1,7 @@
 package libspirv
 
+opts = "--total"
+
 modules = SpirV.Raw.Misc
         , SpirV.Raw.Operations
         , SpirV.Raw.Options

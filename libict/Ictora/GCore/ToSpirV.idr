@@ -1,140 +1,30 @@
 module Ictora.GCore.ToSpirV
 
-import Ictora.Util
-import Ictora.GCore.Util
-
-Scope : Type
-Scope = List (Identifier, Id)
-
-convertExprType : GExprType -> (t : TypeKind ** VarType t)
-convertExprType GTInt = (KScalar ** TInt 32 Unsigned)
-convertExprType GTBool = (KScalar ** TBool)
-convertExprType GTFloat = (KScalar ** TFloat 32)
-convertExprType (GTSum subTypes) = (KComposite ** TStruct $ map convertExprType subTypes)
-
-convertFuncType : GFuncType -> SFuncType
-convertFuncType (MkGFuncType ret params)
-    = let (_ ** retType) = convertExprType ret in
-      MkSFuncType retType (convertExprType <$> params)
+import Ictora.GCore.Lang
+import SpirV.Typed.Builder
+import SpirV.Raw.Program
+import Data.Vect
 
 
-sType : GExprType -> SBuilder Id
-sType t = let (_ ** t2) = convertExprType t in getType t2
+buildFunction : GFunction _ _ -> Function
 
-buildExpr : GExpr -> Scope -> SBuilder (Id, List Instruction)
-buildExpr (GLit (GLInt x)) _ = do
-    res <- freshId
-    type <- sType GTInt
-    addStaticInstr $ MkInstrWithRes res $ OpConstant type (IntLit x)
-    pure (res, [])
-buildExpr (GLit (GLBool x)) _ = do
-    res <- freshId
-    type <- sType GTBool
-    addStaticInstr $ MkInstrWithRes res $ (if x then OpConstantTrue else OpConstantFalse) type
-    pure (res, [])
-buildExpr (GLit (GLFloat x)) _ = do
-    res <- freshId
-    type <- sType GTFloat
-    addStaticInstr $ MkInstrWithRes res $ OpConstant type (FloatLit x)
-    pure (res, [])
-buildExpr (GVar name) scope = pure $ (let Just a = lookup name scope in a, [])
-buildExpr (GFuncCall name params type) scope = do
-    let (Just f) = lookup name scope
-    res <- freshId
-    (paramIds, xs) <- unzip <$> traverse (\p => buildExpr p scope) params
-    typeId <- sType type
-    let y = MkInstrWithRes res $ OpFunctionCall typeId f paramIds
-    pure (res, concat xs ++ [y]) 
-buildExpr (GIf cond ifTrue ifFalse type) scope = do
-    res <- freshId
-    typeId <- sType type
-    (condId, xs) <- buildExpr cond scope
-    (ifTrueId, ys) <- buildExpr ifTrue scope
-    (ifFalseId, zs) <- buildExpr ifFalse scope
-    let w = MkInstrWithRes res $ OpSelect typeId condId ifTrueId ifFalseId
-    pure (res, xs ++ ys ++ zs ++ [w])
-buildExpr (GPrimOp (GAdd e1 e2)) scope = do
-    (e1Id, xs) <- buildExpr e1 scope
-    (e2Id, ys) <- buildExpr e2 scope
-    res <- freshId
-    type <- sType GTInt
-    let z = MkInstrWithRes res $ OpIAdd type e1Id e2Id
-    pure (res, xs ++ ys ++[z])
-buildExpr (GPrimOp (GFAdd e1 e2)) scope = do
-    (e1Id, xs) <- buildExpr e1 scope
-    (e2Id, ys) <- buildExpr e2 scope
-    res <- freshId
-    type <- sType GTFloat
-    let z = MkInstrWithRes res $ OpFAdd type e1Id e2Id
-    pure (res, xs ++ ys ++[z])
-buildExpr (GPrimOp (GSub e1 e2)) scope = do
-    (e1Id, xs) <- buildExpr e1 scope
-    (e2Id, ys) <- buildExpr e2 scope
-    res <- freshId
-    type <- sType GTInt
-    let z = MkInstrWithRes res $ OpISub type e1Id e2Id
-    pure (res, xs ++ ys ++[z])
-buildExpr (GPrimOp (GFSub e1 e2)) scope = do
-    (e1Id, xs) <- buildExpr e1 scope
-    (e2Id, ys) <- buildExpr e2 scope
-    res <- freshId
-    type <- sType GTFloat
-    let z = MkInstrWithRes res $ OpFSub type e1Id e2Id
-    pure (res, xs ++ ys ++[z])
-buildExpr (GPrimOp (GNot e1)) scope = do
-    (e1Id, xs) <- buildExpr e1 scope
-    res <- freshId
-    type <- sType GTBool
-    let y = MkInstrWithRes res $ OpLogicalNot type e1Id
-    pure (res, xs ++ [y])
-buildExpr (GLet name val cont) scope = do
-    (valId, xs) <- buildExpr val scope
-    let newScope = (name, valId) :: scope
-    (contId, ys) <- buildExpr cont newScope
-    pure (contId, xs ++ ys)
-    
+buildFunctions : (prog : GProgram scope) -> Vect (numFuncs prog) Function
+buildFunctions Nil = []
+buildFunctions (Cons f prog) = buildFunction f :: buildFunctions prog
 
 
-buildNormalFunction : GFunction -> SBuilder SFunction
-buildNormalFunction (MkGFunction type name params body) = do
-    funcId <- freshId
-    let opts = MkFunctionOptions Inline Pure
-    paramIds <- traverse (const freshId) params
-    (res, bodyCode) <- buildExpr body $ zip params paramIds
-    let ret = MkInstr $ OpReturnValue res
-    labelId <- freshId
-    let label = MkInstrWithRes labelId OpLabel
-    pure $ MkSFunction funcId (convertFuncType type) paramIds opts ([label] ++ bodyCode ++ [ret])
-
-buildEntryFunction : GFunction -> SBuilder SFunction
-buildEntryFunction (MkGFunction type name params body) = do
-    funcId <- freshId
-    let opts = MkFunctionOptions Inline Pure
-    paramIds <- traverse (const freshId) params
-    (res, bodyCode) <- buildExpr body $ zip params paramIds
-    let ret = MkInstr $ OpReturnValue res
-    labelId <- freshId
-    let label = MkInstrWithRes labelId OpLabel
-    pure $ MkSFunction funcId (convertFuncType type) paramIds opts ([label] ++ bodyCode ++ [ret])
-
-buildFunction : GFunction -> SBuilder SFunction
-buildFunction func = case GFunction.name func of
-                          "vert" => buildEntryFunction func
-                          "frag" => buildEntryFunction func
-                          _ => buildNormalFunction func
-
-
-buildModule : GProgram -> SBuilder SModule
-buildModule funcs = do
+buildModule : GCompleteProgram -> Builder Module
+buildModule (MkGCompleteProgram prog vertProof fragProof) = do
     let caps = [ShaderCap, MatrixCap]
-    sfuncs <- traverse buildFunction funcs
 
-    let vert = lookupPredJust (("vert" ==) . GFunction.name) $ zip funcs sfuncs
-    let frag = lookupPredJust (("frag" ==) . GFunction.name) $ zip funcs sfuncs
+    let sfuncs = buildFunctions prog
 
-    pure $ MkSModule caps SimpleMem LogicalAddr sfuncs vert frag
+    let vertIndex = funcIndex prog vertProof
+    let fragIndex = funcIndex prog fragProof
+
+    pure $ MkModule caps SimpleMem LogicalAddr (numFuncs prog) sfuncs vertIndex fragIndex
 
 
-export convert : GProgram -> SProgram
-convert = build . buildModule
-
+{--
+convert : GCompleteProgram -> Program
+convert = build . buildModule--}
