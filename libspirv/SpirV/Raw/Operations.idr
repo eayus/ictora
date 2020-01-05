@@ -37,6 +37,8 @@ data Operation : OperationType -> Type where
 
     OpConstantFalse : (type : Id) -> Operation Result
 
+    OpConstantComposite : (type : Id) -> (fieldVals : List Id) -> Operation Result
+
     OpFunction : (retType : Id) -> FunctionOptions -> (funcType : Id) -> Operation Result
 
     OpFunctionParameter : (type : Id) -> Operation Result

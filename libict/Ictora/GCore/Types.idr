@@ -1,32 +1,28 @@
 module Ictora.GCore.Types
 
+import Data.Vect
+import Data.HVect
+
 %access public export
 
 data GVarTy : Type where
     GTInt : GVarTy
     GTBool : GVarTy
     GTFloat : GVarTy
-    GTSum : List GVarTy -> GVarTy
+    GTSum : (numFields : Nat) -> Vect numFields GVarTy -> GVarTy
 
 record GFuncTy where
     constructor MkGFuncTy
     ret : GVarTy
-    params : List GVarTy
+    arity : Nat
+    params : Vect arity GVarTy
 
 data GTy : Type where
     GTyFunc : GFuncTy -> GTy
     GTyVar : GVarTy -> GTy
 
-interpTy : GVarTy -> Type
-interpTy GTInt = Int
-interpTy GTBool = Bool
-interpTy GTFloat = Double
-interpTy (GTSum xs) = typeListTuple $ interpTyList xs
-    where interpTyList : List GVarTy -> List Type
-          interpTyList [] = []
-          interpTyList (x :: xs) = interpTy x :: interpTyList xs
-
-          typeListTuple : List Type -> Type
-          typeListTuple [] = ()
-          typeListTuple (x :: xs) = (x, typeListTuple xs)
-
+InterpTy : GVarTy -> Type
+InterpTy GTInt = Int
+InterpTy GTBool = Bool
+InterpTy GTFloat = Double
+InterpTy (GTSum len xs) = assert_total $ HVect (map InterpTy xs)

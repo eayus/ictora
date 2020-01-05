@@ -4,6 +4,7 @@ import public Ictora.GCore.Types
 import Ictora.Util
 import Data.List
 import Data.Fin
+import Data.Vect
 
 %access public export
 
@@ -14,7 +15,7 @@ GScope : Type
 GScope = Assoc GIdentifier GTy
 
 data GExpr : GVarTy -> GScope -> Type where
-    GLit : interpTy type -> GExpr type scope
+    GLit : {type : GVarTy} -> InterpTy type -> GExpr type scope
     GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type scope
     GLet : (name : GIdentifier)
        -> GExpr varType scope
@@ -24,7 +25,8 @@ data GExpr : GVarTy -> GScope -> Type where
 record GFunction (type : GFuncTy) (scope : GScope) where
     constructor MkGFunction
     name : GIdentifier
-    body : GExpr (ret type) scope
+    paramNames : Vect (arity type) GIdentifier
+    body : GExpr (ret type) ((toList $ Data.Vect.zip paramNames $ map GTyVar $ params type) ++ scope)
 
 funcType : {ty : GFuncTy} -> GFunction ty _ -> GFuncTy
 funcType {ty} _ = ty
@@ -43,8 +45,8 @@ data FuncExists : GProgram scope -> GIdentifier -> GFuncTy -> Type where
 record GCompleteProgram where
     constructor MkGCompleteProgram
     prog : GProgram []
-    vertProof : FuncExists prog "vert" (MkGFuncTy GTInt [GTInt])
-    fragProof : FuncExists prog "frag" (MkGFuncTy GTInt [GTInt])
+    vertProof : FuncExists prog "vert" (MkGFuncTy GTInt 1 [GTInt])
+    fragProof : FuncExists prog "frag"  (MkGFuncTy GTInt 1 [GTInt])
 
 
 numFuncs : GProgram _ -> Nat

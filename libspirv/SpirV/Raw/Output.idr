@@ -78,6 +78,7 @@ ToAsm (Operation a) where
     toAsm (OpLoad type ptr access) = unwords ["OpLoad", toAsm type, toAsm ptr, toAsm access]
     toAsm (OpStore var val access) = unwords ["OpStore", toAsm var, toAsm val, toAsm access]
     toAsm (OpConstant type lit) = unwords ["OpConstant", toAsm type, toAsm lit]
+    toAsm (OpConstantComposite type fieldVals) = unwords $ "OpConstantComposite" :: toAsm type :: map toAsm fieldVals
     toAsm (OpConstantTrue type) = unwords ["OpConstantTrue", toAsm type]
     toAsm (OpConstantFalse type) = unwords ["OpConstantFalse", toAsm type]
     toAsm (OpFunction retType opts funcType) = unwords ["OpFunction", toAsm retType, toAsm opts, toAsm funcType]
