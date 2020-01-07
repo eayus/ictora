@@ -15,3 +15,8 @@ Assoc x y = List (x, y)
 listToVect : (xs : List a) -> Vect (length xs) a
 listToVect [] = []
 listToVect (x :: xs) = x :: listToVect xs
+
+
+elemIndex : (xs : Vect n a) -> Elem x xs -> Fin n
+elemIndex (x :: xs) Here = FZ
+elemIndex (x :: xs) (There later) = FS $ elemIndex xs later

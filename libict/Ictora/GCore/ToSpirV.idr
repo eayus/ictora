@@ -48,39 +48,55 @@ mutual
         pure res
 
 
-buildExpr : GExpr type scope -> Builder (Id, List Instruction)
-buildExpr (GLit {type} val) = do
+buildExpr : {len : Nat} -> {scope : GScope len} -> GExpr type len scope -> Vect len Id -> Builder (Id, List Instruction)
+buildExpr (GLit {type} val) _ = do
     i <- buildConstant type val
     pure (i, [])
-buildExpr (GVar name prf) = do
+buildExpr {scope} (GVar name prf) scopeIds = do
+    let nameIndex = elemIndex scope prf
+    let nameId = index nameIndex scopeIds
+    pure (nameId, [])
+buildExpr (GLet name var body) scopeIds = do
+    (varId, varInstr) <- buildExpr var scopeIds
+    (bodyId, bodyInstr) <- buildExpr body (varId :: scopeIds)
+    pure (bodyId, varInstr ++ bodyInstr)
+buildExpr {scope} (GFuncCall name prf params) scopeIds = do
+    let nameIndex = elemIndex scope prf
+    let nameId = index nameIndex scopeIds
+
     res <- freshId
-    pure (res, [])
-buildExpr _ = do
-    res <- freshId
-    pure (res, [])
-{--buildExpr (GLet var expr body) = do
-    res <- freshId
-
-    exprId <- buildExpr expr
-
-    
-
-    pure (res, [])--}
+    let instr = MkInstrWithRes res $ OpFunctionCall type nameId (toList params)
 
 
-buildFunction : GFunction _ _ -> Builder Function
+buildFunction : GFunction _ _ _ -> Builder Function
 {--buildFunction (MkGFunction name params body) = do
     funcId <- freshId
     let opts = MkFunctionOptions Inline Pure
     paramIds <- traverse (const freshId) params--}
 
-
-buildFunctions : (prog : GProgram scope) -> Builder (Vect (numFuncs prog) Function)
+buildFunctions : (prog : GProgram len scope) -> Builder (Vect (numFuncs prog) Function)
 buildFunctions Nil = pure []
 buildFunctions (Cons f prog) = do
     sf <- buildFunction f
     sfs <- buildFunctions prog
     pure $ sf :: sfs
+
+
+buildEntryPoints : Vect n Function -> (fragIndex : Fin n) -> (vertIndex : Fin n) -> Builder (Id, Id, List Instruction)
+buildEntryPoints funcs fragIndex vertIndex = do
+    funcId <- freshId
+    let opts = MkFunctionOptions Inline Pure
+
+    -- call "vert"
+    -- set glPosition equal to "vert"
+    -- return
+    let code = []
+
+    let vertEntry = MkFunction funcId (MkFuncType TVoid []) [] opts code
+    
+    
+    tmpId <- freshId
+    pure (funcId, tmpId, [])
 
 
 buildModule : GCompleteProgram -> Builder Module

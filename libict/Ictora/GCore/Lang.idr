@@ -5,56 +5,61 @@ import Ictora.Util
 import Data.List
 import Data.Fin
 import Data.Vect
+import Data.HVect
 
 %access public export
 
 GIdentifier : Type
 GIdentifier = String
 
-GScope : Type
-GScope = Assoc GIdentifier GTy
+GScope : Nat -> Type
+GScope n = Vect n (GIdentifier, GTy)
 
-data GExpr : GVarTy -> GScope -> Type where
-    GLit : {type : GVarTy} -> InterpTy type -> GExpr type scope
-    GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type scope
+data GExpr : GVarTy -> (len : Nat) -> GScope len -> Type where
+    GLit : {type : GVarTy} -> InterpTy type -> GExpr type len scope
+    GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type len scope
     GLet : (name : GIdentifier)
-       -> GExpr varType scope
-       -> GExpr exprType ((name, GTyVar varType) :: scope)
-       -> GExpr exprType scope
+       -> GExpr varType len scope
+       -> GExpr exprType (S len) ((name, GTyVar varType) :: scope)
+       -> GExpr exprType len scope
+    GFuncCall : (name : GIdentifier)
+       -> Elem (name, GTyFunc (MkGFuncTy ret arity params)) scope
+       -> HVect (map InterpTy params)
+       -> GExpr ret len scope
 
-record GFunction (type : GFuncTy) (scope : GScope) where
+record GFunction (type : GFuncTy) (len : Nat) (scope : GScope len) where
     constructor MkGFunction
     name : GIdentifier
     paramNames : Vect (arity type) GIdentifier
-    body : GExpr (ret type) ((toList $ Data.Vect.zip paramNames $ map GTyVar $ params type) ++ scope)
+    body : GExpr (ret type) (arity type + len) ((zip paramNames $ map GTyVar $ params type) ++ scope)
 
-funcType : {ty : GFuncTy} -> GFunction ty _ -> GFuncTy
+funcType : {ty : GFuncTy} -> GFunction ty _ _ -> GFuncTy
 funcType {ty} _ = ty
 
-data GProgram : GScope -> Type where
-    Nil : GProgram scope
-    Cons : (f : GFunction type scope) -> GProgram ((name f, GTyFunc type) :: scope) -> GProgram scope
+data GProgram : (len : Nat) -> GScope len -> Type where
+    Nil : GProgram len scope
+    Cons : (f : GFunction type len scope) -> GProgram (S len) ((name f, GTyFunc type) :: scope) -> GProgram len scope
 
 
 -- In the program, does a function this name and type exist?
-data FuncExists : GProgram scope -> GIdentifier -> GFuncTy -> Type where
+data FuncExists : GProgram len scope -> GIdentifier -> GFuncTy -> Type where
     Here : FuncExists (Cons func program) (name func) (funcType func)
     There : FuncExists program name type -> FuncExists (Cons topFunc program) name type
 
 
 record GCompleteProgram where
     constructor MkGCompleteProgram
-    prog : GProgram []
+    prog : GProgram 0 []
     vertProof : FuncExists prog "vert" (MkGFuncTy GTInt 1 [GTInt])
     fragProof : FuncExists prog "frag"  (MkGFuncTy GTInt 1 [GTInt])
 
 
-numFuncs : GProgram _ -> Nat
+numFuncs : GProgram _ _ -> Nat
 numFuncs Nil = 0
 numFuncs (Cons _ prog) = succ $ numFuncs prog
 
 
-funcIndex : (prog : GProgram _) -> FuncExists prog name type -> Fin (numFuncs prog)
+funcIndex : (prog : GProgram _ _) -> FuncExists prog name type -> Fin (numFuncs prog)
 funcIndex Nil p impossible
 funcIndex (Cons f fs) Here = 0
 funcIndex (Cons f fs) (There p) = FS $ funcIndex fs p
