@@ -15,17 +15,25 @@ GIdentifier = String
 GScope : Nat -> Type
 GScope n = Vect n (GIdentifier, GTy)
 
-data GExpr : GVarTy -> (len : Nat) -> GScope len -> Type where
-    GLit : {type : GVarTy} -> InterpTy type -> GExpr type len scope
-    GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type len scope
-    GLet : (name : GIdentifier)
-       -> GExpr varType len scope
-       -> GExpr exprType (S len) ((name, GTyVar varType) :: scope)
-       -> GExpr exprType len scope
-    GFuncCall : (name : GIdentifier)
-       -> Elem (name, GTyFunc (MkGFuncTy ret arity params)) scope
-       -> HVect (map InterpTy params)
-       -> GExpr ret len scope
+mutual
+    data GExpr : GVarTy -> (len : Nat) -> GScope len -> Type where
+        GLit : {type : GVarTy} -> InterpTy type -> GExpr type len scope
+        GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type len scope
+        GLet : (name : GIdentifier)
+           -> GExpr varType len scope
+           -> GExpr exprType (S len) ((name, GTyVar varType) :: scope)
+           -> GExpr exprType len scope
+        GFuncCall : (name : GIdentifier)
+           -> Elem (name, GTyFunc (MkGFuncTy ret arity params)) scope
+           -- -> HVect (map (\pt => GExpr pt len scope) params)
+           -> GParamList len scope params
+           -> GExpr ret len scope
+
+    
+    data GParamList : (len : Nat) -> GScope len -> Vect n GVarTy -> Type where
+        EmptyParams : GParamList len scope []
+        (::) : GExpr type len scope -> GParamList len scope types -> GParamList len scope (type :: types)
+
 
 record GFunction (type : GFuncTy) (len : Nat) (scope : GScope len) where
     constructor MkGFunction
@@ -50,8 +58,8 @@ data FuncExists : GProgram len scope -> GIdentifier -> GFuncTy -> Type where
 record GCompleteProgram where
     constructor MkGCompleteProgram
     prog : GProgram 0 []
-    vertProof : FuncExists prog "vert" (MkGFuncTy GTInt 1 [GTInt])
-    fragProof : FuncExists prog "frag"  (MkGFuncTy GTInt 1 [GTInt])
+    vertProof : FuncExists prog "vert" (MkGFuncTy (GTVec Four) 0 [])
+    fragProof : FuncExists prog "frag"  (MkGFuncTy (GTVec Four) 0 [])
 
 
 numFuncs : GProgram _ _ -> Nat

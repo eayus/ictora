@@ -16,7 +16,9 @@ data VarType : TypeKind -> Type where
     TStruct : List (t : TypeKind ** VarType t) -> VarType KComposite
     TBool : VarType KScalar
     TVoid : VarType KVoid
-    TPtr : VarType t -> VarType KPtr
+    TPtr : VarType t -> StorageClass -> VarType KPtr
+    TVec : VarType KScalar -> Nat -> VarType KComposite
+    TArray : Nat -> VarType KScalar -> VarType KComposite
 
 varTypeToDPair : {t : TypeKind} -> VarType t -> (t : TypeKind ** VarType t)
 varTypeToDPair {t} vt = (t ** vt)
@@ -54,7 +56,9 @@ varTypeEq (TInt w1 s1) (TInt w2 s2) = (w1 == w2) && (s1 == s2)
 varTypeEq (TFloat w1) (TFloat w2) = (w1 == w2)
 varTypeEq (TStruct _) (TStruct _) = True
 varTypeEq TBool TBool = True
-varTypeEq (TPtr t1) (TPtr t2) = varTypeEq t1 t2
+varTypeEq (TPtr t1 sc1) (TPtr t2 sc2) = varTypeEq t1 t2 && sc1 == sc2
+varTypeEq (TVec t1 size1) (TVec t2 size2) = varTypeEq t1 t2 && size1 == size2
+varTypeEq (TArray len1 t1) (TArray len2 t2) = len1 == len2 && varTypeEq t1 t2
 varTypeEq _ _  = False
 
 vtDpEq : (t : TypeKind ** VarType t) -> (s : TypeKind ** VarType s) -> Bool

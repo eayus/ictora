@@ -72,6 +72,8 @@ ToAsm (Operation a) where
     toAsm (OpTypeFunction ret param) = unwords $ "OpTypeFunction" :: toAsm ret :: map toAsm param
     toAsm (OpTypePointer sc deref) = unwords ["OpTypePointer", toAsm sc, toAsm deref]
     toAsm OpTypeVoid = "OpTypeVoid"
+    toAsm (OpTypeVector columnType size) = unwords ["OpTypeVector", toAsm columnType, show size]
+    toAsm (OpTypeArray elemType len) = unwords ["OpTypeArray", toAsm elemType, toAsm len]
     toAsm (OpVariable ptrType sc Nothing) = unwords ["OpVariable", toAsm ptrType, toAsm sc]
     toAsm (OpVariable ptrType sc (Just val)) = unwords ["OpVariable", toAsm ptrType, toAsm sc, toAsm val]
     toAsm (OpAccessChain ptrType struct indices) = unwords $ "OpAccessChain" :: toAsm struct :: map toAsm indices

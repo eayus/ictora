@@ -23,6 +23,10 @@ data Operation : OperationType -> Type where
 
     OpTypeVoid : Operation Result
 
+    OpTypeVector : (columnType : Id) -> (numElems : Nat) -> Operation Result
+
+    OpTypeArray : (elemType : Id) -> (len : Id) -> Operation Result
+
     OpVariable : (ptrType : Id) -> StorageClass -> (initVal : Maybe Id) -> Operation Result
 
     OpAccessChain : (ptrSubType : Id) -> (struct : Id) -> (fieldIndices : List Id) -> Operation Result

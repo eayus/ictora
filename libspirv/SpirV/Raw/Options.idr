@@ -42,3 +42,10 @@ Eq Signedness where
     Signed == Signed = True
     Unsigned == Unsigned = True
     _ == _ = False
+
+Eq StorageClass where
+    FunctionStorage == FunctionStorage = True
+    InputStorage == InputStorage = True
+    OutputStorage == OutputStorage = True
+    _ == _ = False
+

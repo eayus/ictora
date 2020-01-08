@@ -31,7 +31,9 @@ record Module where
     numFuncs : Nat
     funcs : Vect numFuncs Function
     vertIndex : Fin numFuncs
+    vertIOs : List Id
     fragIndex : Fin numFuncs
+    fragIOs : List Id
 
 
 record BuilderState where
@@ -74,10 +76,19 @@ mutual
                 subTypeIds <- cgTypeList subTypes
                 addStaticInstr $ MkInstrWithRes res $ OpTypeStruct subTypeIds
             TBool => addStaticInstr $ MkInstrWithRes res $ OpTypeBool
-            (TPtr derefType) => do
+            (TPtr derefType sc) => do
                 derefTypeId <- getType $ derefType
-                addStaticInstr $ MkInstrWithRes res $ OpTypePointer FunctionStorage derefTypeId
+                addStaticInstr $ MkInstrWithRes res $ OpTypePointer sc derefTypeId
             TVoid => addStaticInstr $ MkInstrWithRes res $ OpTypeVoid
+            (TVec inner size) => do
+                innerId <- getType inner
+                addStaticInstr $ MkInstrWithRes res $ OpTypeVector innerId size
+            (TArray len t) => do
+                tId <- getType t
+                lenTypeId <- assert_total $ getType $ TInt 32 Unsigned
+                lenConstant <- freshId
+                addStaticInstr $ MkInstrWithRes lenConstant $ OpConstant lenTypeId (IntLit $ toIntNat len)
+                addStaticInstr $ MkInstrWithRes res $ OpTypeArray tId lenConstant
         modify $ record { types $= insertType vt res }
         pure res
 
@@ -119,7 +130,7 @@ functionToCode (MkFunction ident type params opts bodyCode) = do
     pure $ [x] ++ ys ++ bodyCode ++ [z]
 
 moduleToCode : Module -> Builder Code
-moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex fragIndex) = do
+moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex vertIOs fragIndex fragIOs) = do
     let capsCode = MkInstr . OpCapability <$> caps
     let memCode = MkInstr $ OpMemoryModel addr mem
 
@@ -130,8 +141,8 @@ moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex fragIndex) = do
     let vert = index vertIndex funcs
     let frag = index fragIndex funcs
 
-    let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" []
-                    , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" [] ]
+    let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" vertIOs
+                    , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" fragIOs ]
 
     funcCode <- traverse functionToCode funcs
     staticCode <- BuilderState.code <$> get
