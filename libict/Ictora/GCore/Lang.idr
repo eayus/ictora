@@ -17,7 +17,10 @@ GScope n = Vect n (GIdentifier, GTy)
 
 mutual
     data GExpr : GVarTy -> (len : Nat) -> GScope len -> Type where
-        GLit : {type : GVarTy} -> InterpTy type -> GExpr type len scope
+        GLit : {type : GVarTy}
+            -> {auto isLit : GIsLiteral type}
+            -> InterpTy type
+            -> GExpr type len scope
         GVar : (name : GIdentifier) -> Elem (name, GTyVar type) scope -> GExpr type len scope
         GLet : (name : GIdentifier)
            -> GExpr varType len scope
@@ -25,9 +28,10 @@ mutual
            -> GExpr exprType len scope
         GFuncCall : (name : GIdentifier)
            -> Elem (name, GTyFunc (MkGFuncTy ret arity params)) scope
-           -- -> HVect (map (\pt => GExpr pt len scope) params)
            -> GParamList len scope params
            -> GExpr ret len scope
+        GMkVec : Vect (sizeToNat size) (GExpr GTFloat len scope)
+              -> GExpr (GTVec size) len scope
 
     
     data GParamList : (len : Nat) -> GScope len -> Vect n GVarTy -> Type where
@@ -71,3 +75,14 @@ funcIndex : (prog : GProgram _ _) -> FuncExists prog name type -> Fin (numFuncs 
 funcIndex Nil p impossible
 funcIndex (Cons f fs) Here = 0
 funcIndex (Cons f fs) (There p) = FS $ funcIndex fs p
+
+
+-- TESTING STUFF REMOVE LATER
+
+testProg : GCompleteProgram
+testProg = let vert = MkGFunction "vert" [] $ GMkVec [GLit 1.0, GLit 1.0, GLit 1.0, GLit 1.0]
+               frag = MkGFunction "frag" [] $ GMkVec [GLit 0.5, GLit 0.5, GLit 0.5, GLit 0.5]
+               prog = Cons vert $ Cons frag Nil
+               vprf = the (FuncExists prog "vert" (MkGFuncTy (GTVec Four) 0 [])) Ictora.GCore.Lang.Here
+               fprf = the (FuncExists prog "frag" (MkGFuncTy (GTVec Four) 0 [])) (Ictora.GCore.Lang.There Ictora.GCore.Lang.Here)
+            in MkGCompleteProgram prog vprf fprf

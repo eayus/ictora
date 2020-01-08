@@ -59,6 +59,7 @@ varTypeEq TBool TBool = True
 varTypeEq (TPtr t1 sc1) (TPtr t2 sc2) = varTypeEq t1 t2 && sc1 == sc2
 varTypeEq (TVec t1 size1) (TVec t2 size2) = varTypeEq t1 t2 && size1 == size2
 varTypeEq (TArray len1 t1) (TArray len2 t2) = len1 == len2 && varTypeEq t1 t2
+varTypeEq TVoid TVoid = True
 varTypeEq _ _  = False
 
 vtDpEq : (t : TypeKind ** VarType t) -> (s : TypeKind ** VarType s) -> Bool

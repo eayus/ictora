@@ -30,9 +30,11 @@ record Module where
     addrModel : AddressingModel
     numFuncs : Nat
     funcs : Vect numFuncs Function
-    vertIndex : Fin numFuncs
+    --vertIndex : Fin numFuncs
+    vert : Function
     vertIOs : List Id
-    fragIndex : Fin numFuncs
+    --fragIndex : Fin numFuncs
+    frag : Function
     fragIOs : List Id
 
 
@@ -130,7 +132,7 @@ functionToCode (MkFunction ident type params opts bodyCode) = do
     pure $ [x] ++ ys ++ bodyCode ++ [z]
 
 moduleToCode : Module -> Builder Code
-moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex vertIOs fragIndex fragIOs) = do
+moduleToCode (MkModule caps mem addr numFuncs funcs vert vertIOs frag fragIOs) = do
     let capsCode = MkInstr . OpCapability <$> caps
     let memCode = MkInstr $ OpMemoryModel addr mem
 
@@ -138,16 +140,15 @@ moduleToCode (MkModule caps mem addr numFuncs funcs vertIndex vertIOs fragIndex 
     --vertexInputType <- getType $ TStruct [(), (KScalar ** TFloat 32), (KScalar ** TFloat 32)]
     --let annotateCode = [ MkInstr $ OpMemberDecorate 
 
-    let vert = index vertIndex funcs
-    let frag = index fragIndex funcs
-
     let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" vertIOs
                     , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" fragIOs ]
 
-    funcCode <- traverse functionToCode funcs
+    let execModes = [ MkInstr $ OpExecutionMode (ident frag) OriginLowerLeft ]
+
+    funcCode <- traverse functionToCode (toList funcs ++ [vert, frag])
     staticCode <- BuilderState.code <$> get
 
-    pure $ capsCode ++ [memCode] ++ entryCode ++ staticCode ++ concat funcCode
+    pure $ capsCode ++ [memCode] ++ entryCode ++ execModes ++ staticCode ++ concat funcCode
 
 build : Builder Module -> Program
 build builder = evalState (builder >>= moduleToCode) initBS

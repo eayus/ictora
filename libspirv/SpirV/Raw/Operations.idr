@@ -43,6 +43,8 @@ data Operation : OperationType -> Type where
 
     OpConstantComposite : (type : Id) -> (fieldVals : List Id) -> Operation Result
 
+    OpCompositeConstruct : (compositeType : Id) -> (parts : List Id) -> Operation Result
+
     OpFunction : (retType : Id) -> FunctionOptions -> (funcType : Id) -> Operation Result
 
     OpFunctionParameter : (type : Id) -> Operation Result
@@ -60,6 +62,8 @@ data Operation : OperationType -> Type where
     OpMemoryModel : AddressingModel -> MemoryModel -> Operation NoResult
 
     OpEntryPoint : ExecutionModel -> (func : Id) -> (name : String) -> (inOutVars : List Id) -> Operation NoResult
+
+    OpExecutionMode : (entryPoint : Id) -> ExecutionMode -> Operation NoResult
 
     OpLabel : Operation Result
 

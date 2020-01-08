@@ -29,26 +29,26 @@ sVarTy t = let (_ ** t2) = convertVarTy t in getType t2
 
 
 mutual
-    buildConstants : (tys : Vect n GVarTy) -> HVect (map InterpTy tys) -> Builder (List Id)
+   {-- buildConstants : (tys : Vect n GVarTy) -> HVect (map InterpTy tys) -> Builder (List Id)
     buildConstants [] [] = pure []
     buildConstants (t :: ts) (x :: xs) = do
         xId <- buildConstant t x
         xsIds <- buildConstants ts xs
-        pure (xId :: xsIds)
+        pure (xId :: xsIds)--}
 
 
-    buildConstant : (type : GVarTy) -> InterpTy type -> Builder Id
+    buildConstant : (type : GVarTy) -> {auto p : GIsLiteral type} -> InterpTy type -> Builder Id
     buildConstant ty val = do
         res <- freshId
         stype <- sVarTy ty
         case ty of
              GTInt => addStaticInstr $ MkInstrWithRes res $ OpConstant stype (IntLit val)
-             _ => pure ()
              GTFloat => addStaticInstr $ MkInstrWithRes res $ OpConstant stype (FloatLit val)
              GTBool => addStaticInstr $ MkInstrWithRes res $ (if val then OpConstantTrue else OpConstantFalse) stype
+             {--(GTVec size) => pure ()
              (GTSum len tys) => do
                  ids <- buildConstants tys val
-                 addStaticInstr $ MkInstrWithRes res $ OpConstantComposite stype ids
+                 addStaticInstr $ MkInstrWithRes res $ OpConstantComposite stype ids--}
                 
         pure res
 
@@ -76,6 +76,11 @@ mutual
 
         let instr = MkInstrWithRes res $ OpFunctionCall typeId nameId paramIds
         pure (res, paramInstrs ++ [instr])
+    buildExpr {type = GTVec size} (GMkVec values) scopeIds = do
+        (valueIds, valueCode) <- assert_total $ unzip <$> traverse (\val => buildExpr val scopeIds) (toList values)
+        res <- freshId
+        typeId <- sVarTy (GTVec size)
+        pure (res, concat valueCode ++ [MkInstrWithRes res $ OpCompositeConstruct typeId valueIds])
 
 
     buildParams : GParamList len scope types -> Vect len Id -> Builder (List Id, List Instruction)
@@ -126,13 +131,15 @@ buildVertEntry funcs funcIndex outVarId = do
     glPositionTypeId <- getType $ TPtr (TVec (TFloat 32) 4) OutputStorage
     let vertId = ident $ index funcIndex funcs
     const0 <- buildConstant GTInt 0
+    labelId <- freshId
 
+    let label = MkInstrWithRes labelId OpLabel
     let callVert = MkInstrWithRes vertResult $ OpFunctionCall vec4Id vertId []
     let getGlPosition = MkInstrWithRes glPositionId $ OpAccessChain glPositionTypeId outVarId [const0]
     let setGlPosition = MkInstr $ OpStore glPositionId vertResult NormalMemAccess
     let finish = MkInstr OpReturn
 
-    pure $ MkFunction funcId (MkFuncType TVoid []) [] opts [callVert, getGlPosition, setGlPosition, finish]
+    pure $ MkFunction funcId (MkFuncType TVoid []) [] opts [label, callVert, getGlPosition, setGlPosition, finish]
 
 
 buildModule : GCompleteProgram -> Builder Module
@@ -153,9 +160,10 @@ buildModule (MkGCompleteProgram prog vertProof fragProof) = do
 
     -- Build Entry Function
     vertEntryFunc <- buildVertEntry sfuncs vertIndex outId
+    fragEntryFunc <- buildVertEntry sfuncs fragIndex outId
 
-    pure $ MkModule caps SimpleMem LogicalAddr (S $ numFuncs prog) (sfuncs `append` vertEntryFunc) (weaken vertIndex) [outId] (weaken fragIndex) []
+    pure $ MkModule caps SimpleMem LogicalAddr (numFuncs prog) sfuncs vertEntryFunc [outId] fragEntryFunc [outId]
 
 
-convert : GCompleteProgram -> Program
+export convert : GCompleteProgram -> Program
 convert = build . buildModule

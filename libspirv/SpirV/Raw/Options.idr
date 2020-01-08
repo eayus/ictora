@@ -36,6 +36,9 @@ data ExecutionModel = VertexShader | FragmentShader
 data MemoryModel = SimpleMem | GLSL450Mem | OpenCLMem
 
 
+data ExecutionMode = OriginLowerLeft
+
+
 
 
 Eq Signedness where

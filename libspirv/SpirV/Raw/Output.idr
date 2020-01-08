@@ -64,6 +64,9 @@ ToAsm MemoryModel where
     toAsm GLSL450Mem = "GLSL450"
     toAsm OpenCLMem = "OpenCL"
 
+ToAsm ExecutionMode where
+    toAsm OriginLowerLeft = "OriginLowerLeft"
+
 ToAsm (Operation a) where
     toAsm (OpTypeInt width sign) = unwords ["OpTypeInt", show width, toAsm sign]
     toAsm (OpTypeFloat width) = unwords ["OpTypeFloat", show width]
@@ -76,11 +79,12 @@ ToAsm (Operation a) where
     toAsm (OpTypeArray elemType len) = unwords ["OpTypeArray", toAsm elemType, toAsm len]
     toAsm (OpVariable ptrType sc Nothing) = unwords ["OpVariable", toAsm ptrType, toAsm sc]
     toAsm (OpVariable ptrType sc (Just val)) = unwords ["OpVariable", toAsm ptrType, toAsm sc, toAsm val]
-    toAsm (OpAccessChain ptrType struct indices) = unwords $ "OpAccessChain" :: toAsm struct :: map toAsm indices
+    toAsm (OpAccessChain ptrType struct indices) = unwords $ "OpAccessChain" :: toAsm ptrType :: toAsm struct :: map toAsm indices
     toAsm (OpLoad type ptr access) = unwords ["OpLoad", toAsm type, toAsm ptr, toAsm access]
     toAsm (OpStore var val access) = unwords ["OpStore", toAsm var, toAsm val, toAsm access]
     toAsm (OpConstant type lit) = unwords ["OpConstant", toAsm type, toAsm lit]
     toAsm (OpConstantComposite type fieldVals) = unwords $ "OpConstantComposite" :: toAsm type :: map toAsm fieldVals
+    toAsm (OpCompositeConstruct compositeType parts) = unwords $ "OpCompositeConstruct" :: toAsm compositeType :: map toAsm parts
     toAsm (OpConstantTrue type) = unwords ["OpConstantTrue", toAsm type]
     toAsm (OpConstantFalse type) = unwords ["OpConstantFalse", toAsm type]
     toAsm (OpFunction retType opts funcType) = unwords ["OpFunction", toAsm retType, toAsm opts, toAsm funcType]
@@ -92,6 +96,7 @@ ToAsm (Operation a) where
     toAsm (OpCapability cap) = unwords ["OpCapability", toAsm cap]
     toAsm (OpMemoryModel addr mem) = unwords ["OpMemoryModel", toAsm addr, toAsm mem]
     toAsm (OpEntryPoint exec func name inouts) = unwords $ "OpEntryPoint" :: toAsm exec :: toAsm func :: show name :: map toAsm inouts
+    toAsm (OpExecutionMode entry mode) = unwords ["OpExecutionMode", toAsm entry, toAsm mode]
     toAsm OpLabel = "OpLabel"
     toAsm (OpIAdd type lhs rhs) = unwords ["OpIAdd", toAsm type, toAsm lhs, toAsm rhs]
     toAsm (OpFAdd type lhs rhs) = unwords ["OpFAdd", toAsm type, toAsm lhs, toAsm rhs]
