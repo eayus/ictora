@@ -39,6 +39,9 @@ data MemoryModel = SimpleMem | GLSL450Mem | OpenCLMem
 data ExecutionMode = OriginLowerLeft
 
 
+data Decoration = LocationDecor
+
+
 
 
 Eq Signedness where

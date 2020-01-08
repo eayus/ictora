@@ -67,6 +67,9 @@ ToAsm MemoryModel where
 ToAsm ExecutionMode where
     toAsm OriginLowerLeft = "OriginLowerLeft"
 
+ToAsm Decoration where
+    toAsm LocationDecor = "Location"
+
 ToAsm (Operation a) where
     toAsm (OpTypeInt width sign) = unwords ["OpTypeInt", show width, toAsm sign]
     toAsm (OpTypeFloat width) = unwords ["OpTypeFloat", show width]
@@ -104,6 +107,7 @@ ToAsm (Operation a) where
     toAsm (OpFSub type lhs rhs) = unwords ["OpFSub", toAsm type, toAsm lhs, toAsm rhs]
     toAsm (OpLogicalNot type operand) = unwords ["OpLogicalNot", toAsm type, toAsm operand]
     toAsm (OpSelect type cond ifTrue ifFalse) = unwords $ "OpSelect" :: map toAsm [type, cond, ifTrue, ifFalse]
+    toAsm (OpDecorate var decor n) = unwords ["OpDecorate", toAsm var, toAsm decor, show n]
 
 ToAsm Instruction where
     toAsm (MkInstr op) = toAsm op

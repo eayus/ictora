@@ -32,10 +32,10 @@ record Module where
     funcs : Vect numFuncs Function
     --vertIndex : Fin numFuncs
     vert : Function
-    vertIOs : List Id
+    vertIOs : List (Id, Maybe Nat) -- Id, Maybe location
     --fragIndex : Fin numFuncs
     frag : Function
-    fragIOs : List Id
+    fragIOs : List (Id, Maybe Nat) -- Id, Maybe location
 
 
 record BuilderState where
@@ -131,6 +131,12 @@ functionToCode (MkFunction ident type params opts bodyCode) = do
 
     pure $ [x] ++ ys ++ bodyCode ++ [z]
 
+
+generateDecorations : List (Id, Maybe Nat) -> List Instruction
+generateDecorations [] = []
+generateDecorations ((i, Just n) :: xs) = (MkInstr $ OpDecorate i LocationDecor n) :: generateDecorations xs
+generateDecorations ((_, Nothing) :: xs) = generateDecorations xs
+
 moduleToCode : Module -> Builder Code
 moduleToCode (MkModule caps mem addr numFuncs funcs vert vertIOs frag fragIOs) = do
     let capsCode = MkInstr . OpCapability <$> caps
@@ -140,15 +146,17 @@ moduleToCode (MkModule caps mem addr numFuncs funcs vert vertIOs frag fragIOs) =
     --vertexInputType <- getType $ TStruct [(), (KScalar ** TFloat 32), (KScalar ** TFloat 32)]
     --let annotateCode = [ MkInstr $ OpMemberDecorate 
 
-    let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" vertIOs
-                    , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" fragIOs ]
+    let entryCode = [ MkInstr $ OpEntryPoint VertexShader (ident vert) "vert" (fst $ unzip vertIOs)
+                    , MkInstr $ OpEntryPoint FragmentShader (ident frag) "frag" (fst $ unzip fragIOs) ]
 
     let execModes = [ MkInstr $ OpExecutionMode (ident frag) OriginLowerLeft ]
+
+    let decorateCode = generateDecorations $ vertIOs ++ fragIOs
 
     funcCode <- traverse functionToCode (toList funcs ++ [vert, frag])
     staticCode <- BuilderState.code <$> get
 
-    pure $ capsCode ++ [memCode] ++ entryCode ++ execModes ++ staticCode ++ concat funcCode
+    pure $ capsCode ++ [memCode] ++ entryCode ++ execModes ++ decorateCode ++ staticCode ++ concat funcCode
 
 build : Builder Module -> Program
 build builder = evalState (builder >>= moduleToCode) initBS

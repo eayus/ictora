@@ -78,3 +78,5 @@ data Operation : OperationType -> Type where
     OpLogicalNot : (type : Id) -> (operand : Id) -> Operation Result
 
     OpSelect : (type : Id) -> (cond : Id) -> (ifTrue : Id) -> (ifFalse : Id) -> Operation Result
+
+    OpDecorate : (var : Id) -> Decoration -> Nat -> Operation NoResult

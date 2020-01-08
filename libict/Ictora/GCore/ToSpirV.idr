@@ -133,6 +133,7 @@ buildVertEntry funcs funcIndex outVarId = do
     const0 <- buildConstant GTInt 0
     labelId <- freshId
 
+    -- Wondering why this isn't working? OpStore is backwards.
     let label = MkInstrWithRes labelId OpLabel
     let callVert = MkInstrWithRes vertResult $ OpFunctionCall vec4Id vertId []
     let getGlPosition = MkInstrWithRes glPositionId $ OpAccessChain glPositionTypeId outVarId [const0]
@@ -140,6 +141,22 @@ buildVertEntry funcs funcIndex outVarId = do
     let finish = MkInstr OpReturn
 
     pure $ MkFunction funcId (MkFuncType TVoid []) [] opts [label, callVert, getGlPosition, setGlPosition, finish]
+
+
+buildFragEntry : (fragFunc : Id) -> (outColorVar : Id) -> Builder Function
+buildFragEntry fragId color = do
+    fragEntry <- freshId
+    label <- freshId
+    result <- freshId
+
+    colorType <- sVarTy $ GTVec Four
+
+    let iLabel = MkInstrWithRes label OpLabel
+    let iCall  = MkInstrWithRes result $ OpFunctionCall colorType fragId []
+    let iStore = MkInstr $ OpStore color result NormalMemAccess
+    let iRet   = MkInstr OpReturn
+
+    pure $ MkFunction fragEntry (MkFuncType TVoid []) [] (MkFunctionOptions Inline Pure) [iLabel, iCall, iStore, iRet]
 
 
 buildModule : GCompleteProgram -> Builder Module
@@ -158,11 +175,15 @@ buildModule (MkGCompleteProgram prog vertProof fragProof) = do
     outId <- freshId
     addStaticInstr $ MkInstrWithRes outId $ OpVariable outType OutputStorage Nothing
 
+    colorVar <- freshId
+    colorType <- getType $ TPtr (TVec (TFloat 32) 4) OutputStorage
+    addStaticInstr $ MkInstrWithRes colorVar $ OpVariable colorType OutputStorage Nothing
+
     -- Build Entry Function
     vertEntryFunc <- buildVertEntry sfuncs vertIndex outId
-    fragEntryFunc <- buildVertEntry sfuncs fragIndex outId
+    fragEntryFunc <- buildFragEntry (ident $ index fragIndex sfuncs) colorVar
 
-    pure $ MkModule caps SimpleMem LogicalAddr (numFuncs prog) sfuncs vertEntryFunc [outId] fragEntryFunc [outId]
+    pure $ MkModule caps SimpleMem LogicalAddr (numFuncs prog) sfuncs vertEntryFunc [(outId, Nothing)] fragEntryFunc [(colorVar, Just 0)]
 
 
 export convert : GCompleteProgram -> Program
