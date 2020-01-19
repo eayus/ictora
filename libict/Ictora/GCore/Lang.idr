@@ -81,7 +81,7 @@ funcIndex (Cons f fs) (There p) = FS $ funcIndex fs p
 
 testProg : GCompleteProgram
 testProg = let vert = MkGFunction "vert" [] $ GMkVec [GLit 1.0, GLit 1.0, GLit 1.0, GLit 1.0]
-               frag = MkGFunction "frag" [] $ GMkVec [GLit 0.5, GLit 0.5, GLit 0.5, GLit 0.5]
+               frag = MkGFunction "frag" [] $ GMkVec [GLit 0.239, GLit 0.188, GLit 0.3176, GLit 1.0]
                prog = Cons vert $ Cons frag Nil
                vprf = the (FuncExists prog "vert" (MkGFuncTy (GTVec Four) 0 [])) Ictora.GCore.Lang.Here
                fprf = the (FuncExists prog "frag" (MkGFuncTy (GTVec Four) 0 [])) (Ictora.GCore.Lang.There Ictora.GCore.Lang.Here)
