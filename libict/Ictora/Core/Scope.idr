@@ -24,12 +24,15 @@ extendSuperScope SSNil NoKeyEmpty = SSNil
 extendSuperScope (SSCons z w) (NoKeyLater x f) = let s = extendSuperScope w x in SSCons (There z f) s
 
 
-extendScopes : SuperScope bigScope smallScope -> SuperScope ((x, y) :: bigScope) ((x, y) :: smallScope)
-extendScopes = ?aa
+extendScopes : {smallScope : CScope _}
+            -> {bigScope : CScope _}
+            -> SuperScope bigScope smallScope
+            -> SuperScope ((x, y) :: bigScope) ((x, y) :: smallScope)
+extendScopes {smallScope = []} _ = SSCons Here SSNil
+extendScopes {smallScope = ((varName, varTy) :: xs)} {bigScope} (SSCons lkp ss) = extendScopes (SSCons lkp ss)
 
 
-superScopeRefl : {scope : CScope len} -> SuperScope scope scope
-superScopeRefl = ?help
+superScopeRefl : (scope : CScope len) -> SuperScope scope scope
 
 
 freshName : (scope : CScope len) -> (x : CIdentifier ** NoKey x scope)
