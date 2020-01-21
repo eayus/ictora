@@ -1,7 +1,9 @@
 module Ictora.Core.Lang
 
+import public Ictora.Util
 import public Data.Vect
 import public Ictora.Core.Types
+import public Data.Vect.Views
 
 %access public export
 
@@ -12,46 +14,78 @@ CScope : Nat -> Type
 CScope n = Vect n (CIdentifier, CType)
 
 
-data CExpr : CType -> (scopeLen : Nat) -> CScope scopeLen -> Type where
+data CExpr : CType -> CScope scopeLen -> Type where
     CLam : (name : CIdentifier)
         -> (argT : CType)
-        -> CExpr bodyT (S len) ((name, argT) :: scope)
-        -> CExpr (CTArr argT bodyT) len scope
+        -> CExpr bodyT ((name, argT) :: scope)
+        -> CExpr (argT ~> bodyT) scope
 
-    CApp : CExpr (CTArr argT bodyT) len scope
-        -> CExpr argT len scope
-        -> CExpr bodyT len scope
+    CApp : CExpr (argT ~> bodyT) scope
+        -> CExpr argT scope
+        -> CExpr bodyT scope
 
     CVar : (name : CIdentifier)
-        -> Elem (name, t) scope
-        -> CExpr t len scope
+        -> LookupIs name t scope
+        -> CExpr t scope
 
     CLet : (name : CIdentifier)
-        -> CExpr varT len scope
-        -> CExpr exprT (S len) ((name, varT) :: scope)
-        -> CExpr exprT len scope
+        -> CExpr varT scope
+        -> CExpr exprT ((name, varT) :: scope)
+        -> CExpr exprT scope
 
 
-record CFunction (name : CIdentifier) (ty : CType) (scopeLen : Nat) (scope : CScope scopeLen) where
+record CFunction (name : CIdentifier) (ty : CType) (scope : CScope scopeLen) where
     constructor MkCFunction
-    body : CExpr ty scopeLen scope
+    body : CExpr ty scope
 
 
-data CProgram : (scopeLen : Nat) -> CScope scopeLen -> Type where
-    CEmptyProg : CProgram len scope
+data CProgram : CScope scopeLen -> Type where
+    CEmptyProg : CProgram scope
 
-    CConsFunc : CFunction name ty len scope
-             -> CProgram (S len) ((name, ty) :: scope)
-
-
-
+    CConsFunc : CFunction name ty scope
+             -> CProgram ((name, ty) :: scope)
+             -> CProgram scope
 
 
-freeVariables : {ty : CType} -> CExpr ty len scope -> (scopeLen : Nat ** CScope scopeLen)
-freeVariables (CLam name argTy body) = filter (\(s, _) => s != name) $ freeVariables body
-freeVariables (CApp l r) = nub $ (freeVariables l) ++ (freeVariables r)
-freeVariables (CVar name ty) = [(name, ty)]
-freeVariables (CLet name var body) = freeVariables var
+--LangConstruct : Type
+--LangConstruct = (len : Nat) -> CScope len -> Type
+
+
+{--decreaseMinScope : (m : Nat ** Vect m (varName : CIdentifier
+                                      ** varTy : CType
+                                      ** Elem (varName, varTy) (x :: scope)))
+                -> (n : Nat ** Vect n (varName : CIdentifier
+                                      ** varTy : CType
+                                      ** Elem (varName, varTy) scope))
+decreaseMinScope (Z ** []) = (Z ** [])
+decreaseMinScope (S n ** ((varName ** varTy ** Here) :: xs)) = decreaseMinScope (n ** xs)
+decreaseMinScope (S n ** ((varName ** varTy ** There p) :: xs)) =
+    let (m ** ys) = decreaseMinScope (n ** xs)
+    in  (S m ** (varName ** varTy ** p) :: ys)
+
+
+minimumScope : {ty : CType}
+            -> CExpr ty len scope
+            -> (n : Nat ** Vect n (varName : CIdentifier
+                                  ** varTy : CType 
+                                  ** Elem (varName, varTy) scope))
+minimumScope (CLam name ty body) = decreaseMinScope $ minimumScope body
+minimumScope (CApp l r) = let (n1 ** scope1) = minimumScope l
+                              (n2 ** scope2) = minimumScope r
+                          in (n1 + n2 ** scope1 ++ scope2)
+minimumScope {ty} (CVar name prf) = (1 ** [(name ** ty ** prf)])
+minimumScope (CLet name var body) = decreaseMinScope $ minimumScope body
+
+
+--TODO: IMPL THESE
+
+minimumScope' : CExpr ty len scope -> (len' : Nat ** CScope len')
+
+minimiseExprScope : (e : CExpr ty len scope)
+                 -> CExpr ty (fst $ minimumScope' e)
+                             (snd $ minimumScope' e)
+
+weakenExprMany : CExpr ty len scope -> CExpr ty (len + extraLen) (scope ++ extraScope)
 
  
 freshName : CScope len -> CIdentifier
@@ -61,7 +95,6 @@ freshName = tryNum 0
                                 Just _ => tryNum (S n) scope
                                 Nothing => (show n)
 
-            -> CProgram len scope
 
 
 insertAtElemPrf : {xs : Vect n a} -> (i : Fin (S n)) -> Elem x xs -> Elem x (insertAt i y xs)
@@ -122,3 +155,12 @@ swapScopeAt n (CLet name var body) = CLet name (swapScopeAt n var) (swapScopeAt 
 
 swapScope : CExpr ty (S (S len)) (x :: y :: scope) -> CExpr ty (S (S len)) (y :: x :: scope)
 swapScope = swapScopeAt FZ
+
+
+
+scopeToType : CScope len -> CType -> CType
+scopeToType [] ret = ret
+scopeToType ((_, ty) :: xs) ret = CTArr ty (scopeToType xs ret)
+
+
+applyAllScope : CExpr (scopeToType scope ty) len scope -> CExpr ty len scope--}
