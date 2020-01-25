@@ -26,14 +26,19 @@ append Nil x = x :: Nil
 append (y :: ys) x = y :: append ys x
 
 
-data LookupIs : (key : a) -> (val : b) -> Vect n (a, b) -> Type where
-    Here : LookupIs x y ((x, y) :: xys)
-    There : LookupIs x y xys -> Not (x = newX) -> LookupIs x y ((newX, newY) :: xys)
+data LookupIs : (key : a) -> Vect n (a, b) -> (val : b) -> Type where
+    Here : LookupIs x ((x, y) :: xys) y
+    There : LookupIs x xys y -> Not (x = newX) -> LookupIs x ((newX, newY) :: xys) y
 
 
 data NoKey : (key : a) -> Vect n (a, b) -> Type where
     NoKeyEmpty : NoKey k []
     NoKeyLater : NoKey k xys -> Not (x = k) -> NoKey k ((x, y) :: xys)
+
+
+data UniqueKeys : Vect n (a, b) -> Type where
+    UniqEmpty : UniqueKeys []
+    UniqCons : UniqueKeys xs -> NoKey k xs -> UniqueKeys ((k, v) :: xs)
 
 
 lookupOrMissing : DecEq a => (key : a) -> (m : Vect n (a, b)) -> Either (NoKey key m) b
@@ -47,3 +52,16 @@ lookupOrMissing k ((x, y) :: xys) = case decEq x k of
 
 Some : {a : Type} -> (a -> Type) -> Type
 Some {a} f = (x : a ** f x)
+
+
+
+removeEntriesWithKey : DecEq a
+                    => (key : a)
+                    -> Vect len (a, b)
+                    -> (len' : Nat
+                       ** map' : Vect len' (a, b)
+                       ** NoKey key map')
+removeEntriesWithKey key [] = (0 ** [] ** NoKeyEmpty)
+removeEntriesWithKey key ((k, v) :: xs) = case decEq k key of
+                                               Yes _ => removeEntriesWithKey key xs
+                                               No prf => let (len' ** map' ** nokey') = removeEntriesWithKey key xs in (S len' ** (k, v) :: map' ** NoKeyLater nokey' prf)
