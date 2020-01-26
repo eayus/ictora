@@ -6,3 +6,7 @@ modules = Ictora.GCore.Lang
     , Ictora.GCore.Types
 	, Ictora.GCore.ToSpirV
 	, Ictora.Util
+    , Ictora.Core.Types
+    , Ictora.Core.Lang
+    , Ictora.Core.Scope
+    , Ictora.Core.LamLift

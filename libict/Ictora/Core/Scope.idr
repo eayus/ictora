@@ -5,6 +5,16 @@ import Ictora.Core.Lang
 %access public export
 
 
+data Suffix : Vect n a -> Vect m a -> Type where
+    SuffixRefl : Suffix xs xs
+    SuffixCons : Suffix xs ys -> Suffix xs (y :: ys)
+
+
+weakenSuffix : Suffix (x :: xs) ys -> Suffix xs ys
+weakenSuffix SuffixRefl = SuffixCons SuffixRefl
+weakenSuffix (SuffixCons x) = SuffixCons $ weakenSuffix x
+
+
 weakenHasType : (newIndex : Fin (S n))
              -> (newTy : CTy)
              -> HasType i scope t
@@ -32,6 +42,14 @@ wrapLambdas {scope = []} e = e
 wrapLambdas {scope = (x :: xs)} e = wrapLambdas $ CLam e
 
 
-applyScope : (scope : Vect n CTy) -> CExpr [] (scopeToType scope a) -> CExpr scope a
-applyScope [] e = e
-applyScope (t :: ts) e = CApp (weakenScope FZ t $ applyScope ts e) (CVar Here)
+suffixHasType : Suffix scope scope' -> HasType i scope t -> (j : _ ** HasType j scope' t)
+suffixHasType SuffixRefl hasTy = (_ ** hasTy)
+suffixHasType (SuffixCons x) p = let (suff' ** hasTy') = suffixHasType x p in (FS suff' ** There hasTy')
+
+
+applyScope : {scope : Vect n CTy}
+          -> Suffix scope scope'
+          -> CExpr scope' (scopeToType scope a)
+          -> CExpr scope' a
+applyScope {scope = []} _ e = e
+applyScope {scope = (t :: ts)} p e = CApp (applyScope (weakenSuffix p) e) (let (_ ** hastype) = suffixHasType p Here in CVar hastype)
