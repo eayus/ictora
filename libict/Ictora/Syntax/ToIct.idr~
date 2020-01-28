@@ -1,0 +1,38 @@
+module Ictora.Syntax.ToIct
+
+import Ictora.Syntax.Lang
+import Ictora.Syntax.TypeError
+import Ictora.Ict.Lang
+import Control.Monad.Reader
+import Control.Monad.Trans
+
+
+TypeAliases : Type
+TypeAliases = List (SIdent, ITy)
+
+Scope : Nat -> Type
+Scope n = Vect n (SIdent, ITy)
+
+
+
+defaultTAs : TypeAliases
+defaultTAs = [ ("Int", ITInt), ("Float", ITFloat) ]
+
+
+convertTy : TypeAliases -> STy -> Either TypeError ITy
+convertTy tas (t ~> u) = [| convertTy tas t ~> convertTy tas u |]
+convertTy tas (NamedTy name) = case lookup name tas of
+                                    Just ity => pure ity
+                                    Nothing => Left $ UnknownType name (fst <$> tas)
+
+
+convertExpr : (locals : Scope _)
+           -> (globals : Scope _)
+           -> SExpr
+           -> Either TypeError (ty : ITy ** IExpr (fst <$> locals) globals ty)
+convertExpr locals globals (SVar x) = ?help_1
+convertExpr locals globals (SApp x y) = ?help_2
+convertExpr locals globals (SLam var ty x) = ?help_3
+convertExpr locals globals (SLet x y z) = ?help_4
+convertExpr locals globals (SLit x) = ?help_5
+

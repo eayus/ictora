@@ -1,0 +1,48 @@
+module Ictora.Ict.Types
+
+%access public export
+-- %default total
+
+infixr 2 ~>
+
+
+data ITy : Type where
+    ITInt : ITy
+    ITFloat : ITy
+    (~>) : ITy -> ITy -> ITy
+
+
+intNotFloat : ITInt = ITFloat -> Void
+intNotFloat Refl impossible
+
+intNotArr : (ITInt = t ~> u) -> Void
+intNotArr Refl impossible
+
+floatNotArr : (ITFloat = t ~> u) -> Void
+floatNotArr Refl impossible
+
+neqRetType : Not (u = w) -> Not (t ~> u = t ~> w)
+neqRetType neq Refl = neq Refl
+
+neqArgType : Not (u = w) -> Not (u ~> t = w ~> t)
+neqArgType neq Refl = neq Refl
+
+
+neqBothType : Not (s = t) -> Not (u = v) -> Not (s ~> u = t ~> v)
+neqBothType neq1 neq2 Refl = neq1 Refl
+
+
+implementation DecEq ITy where
+    decEq ITInt ITInt = Yes Refl
+    decEq ITInt ITFloat = No intNotFloat
+    decEq ITInt (x ~> y) = No intNotArr
+    decEq ITFloat ITInt = No $ negEqSym intNotFloat
+    decEq ITFloat ITFloat = Yes Refl
+    decEq ITFloat (x ~> y) = No floatNotArr
+    decEq (x ~> y) ITInt = No $ negEqSym intNotArr
+    decEq (x ~> y) ITFloat = No $ negEqSym floatNotArr
+    decEq (t ~> u) (v ~> w) = case (decEq t v, decEq u w) of
+                                   (Yes Refl, Yes Refl) => Yes Refl
+                                   (Yes Refl, No p) => No $ neqRetType p
+                                   (No p, Yes Refl) => No $ neqArgType p
+                                   (No p1, No p2) => No ?help

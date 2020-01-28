@@ -1,0 +1,38 @@
+module Ictora.Ict.Lang
+
+import public Data.Vect
+import public Ictora.Util
+
+%access public export
+
+infixr 2 ~>
+
+
+Name : Type
+Name = String
+
+
+data ITy : Type where
+    ITInt : ITy
+    ITFloat : ITy
+    (~>) : ITy -> ITy -> ITy
+
+
+data IExpr : (locals : Vect n ITy) -> (globals : Vect m (Name, ITy)) -> ITy -> Type where
+    ILocalVar : IndexIs i local ty -> IExpr local global ty
+    IGlobalVar : LookupIs vname globals ty -> IExpr local global ty
+    ILit : Int -> IExpr local global ITInt
+    IApp : IExpr local global (a ~> b) -> IExpr local global a -> IExpr local global b
+    ILam : IExpr (a :: local) global b -> IExpr local global (a ~> b)
+    ILet : IExpr local global a -> IExpr (a :: local) global b -> IExpr local global b
+
+
+
+implementation DecEq ITy where
+    decEq ITInt ITInt = Yes Refl
+    decEq ITInt ITFloat = No (\__pi_arg => ?help1)
+    decEq ITInt (x ~> y) = ?help_6
+    decEq ITFloat ITInt = ?help_1
+    decEq ITFloat ITFloat = ?help_7
+    decEq ITFloat (x ~> y) = ?help_8
+    decEq (x ~> y) t2 = ?help_3

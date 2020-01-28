@@ -32,6 +32,10 @@ liftExpr e = (wrapLambdas e, applyScope (SuffixCons SuffixRefl) $ CVar Here)
                   (ExprNoLam e)
 lamLiftExpr (CLit _) = Right LitNoLam
 lamLiftExpr (CVar _) = Right VarNoLam
-lamLiftExpr (CApp l r) = ?help1
+lamLiftExpr (CApp l r) = case lamLiftExpr l of
+                              Left (auxTy ** (aux, expr')) => ?help
+                              Right lprf => case lamLiftExpr r of
+                                                Left (auxTy ** (aux, expr')) => ?help2
+                                                Right rprf => Right $ AppNoLam lprf rprf
 lamLiftExpr (CLet x y) = ?help_5
 lamLiftExpr e@(CLam _) = Left $ (_ ** liftExpr e)--}

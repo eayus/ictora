@@ -1,6 +1,6 @@
 package libict
 
-opts = "-i ../libspirv --total"
+opts = "-i ../libspirv --total -p lightyear"
 
 modules = Ictora.GCore.Lang
     , Ictora.GCore.Types

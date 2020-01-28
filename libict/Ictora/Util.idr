@@ -65,3 +65,34 @@ removeEntriesWithKey key [] = (0 ** [] ** NoKeyEmpty)
 removeEntriesWithKey key ((k, v) :: xs) = case decEq k key of
                                                Yes _ => removeEntriesWithKey key xs
                                                No prf => let (len' ** map' ** nokey') = removeEntriesWithKey key xs in (S len' ** (k, v) :: map' ** NoKeyLater nokey' prf)
+
+
+
+
+
+
+-- Actually Useful Stuff
+
+data IndexIs : Fin n -> Vect n a -> a -> Type where
+    This : IndexIs FZ (e :: xs) e
+    That : IndexIs n xs e -> IndexIs (FS n) (x :: xs) e
+
+
+lookupPrf : DecEq a => (k : a) -> (xs : Vect n (a, b)) -> Maybe (v : b ** LookupIs k xs v)
+lookupPrf k [] = Nothing
+lookupPrf k ((k', v') :: xs) = case decEq k k' of
+                                    Yes Refl => Just (v' ** Here)
+                                    No prf => do
+                                        (v'' ** later) <- lookupPrf k xs
+                                        Just (v'' ** There later prf)
+
+
+snds : Vect n (a, b) -> Vect n b
+snds [] = []
+snds ((x, y) :: xys) = y :: snds xys
+
+
+keyLocation : LookupIs k xs v -> (i : _ ** IndexIs i (snds xs) v)
+keyLocation Here = (FZ ** This)
+keyLocation (There later prf) = let (i ** p) = keyLocation later in (FS i ** That p)
+
