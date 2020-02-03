@@ -21,36 +21,43 @@ convertTy (NamedTy badName) = Left $ UnknownType badName []
 convertTy (t ~> u) = [| convertTy t ~> convertTy u |]
 
 
-convertExpr : (scope : Scope) -> SExpr -> Either TypeError (t : _ ** IExpr scope t)
-convertExpr scope (SVar name) = case lookupPrf name scope of
-                                     Just (t ** prf) => Right (t ** IVar prf)
-                                     Nothing => Left $ UndefinedVariable name (fst <$> scope)
-convertExpr scope (SApp x y) = do
-    (lTy ** l) <- convertExpr scope x
-    (rTy ** r) <- convertExpr scope y
+convertExpr : (locals : Scope)
+           -> (globals : Scope)
+           -> (uniq : UniqKeys globals)
+           -> SExpr
+           -> Either TypeError (t : _ ** IExpr locals (globals ** uniq) t)
+convertExpr locals globals uniq (SVar name) =
+  case lookupPrf name locals of
+       Just (t ** prf) => Right (t ** ILocalVar prf)
+       Nothing => case lookupPrf name globals of
+                       Just (t ** prf) => Right (t ** IGlobalVar prf)
+                       Nothing => Left $ UndefinedVariable name (fst <$> locals ++ globals)
+convertExpr locals globals uniq (SApp x y) = do
+    (lTy ** l) <- convertExpr locals globals uniq x
+    (rTy ** r) <- convertExpr locals globals uniq y
     case lTy of
          (t1 ~> t2) => case decEq t1 rTy of
                             Yes Refl => pure (t2 ** IApp l r)
                             No _ => Left $ ArgTypeMismatch t1 rTy
          _ => Left $ NonFunctionApplication lTy rTy
-convertExpr scope (SLam var ty x) = do
+convertExpr locals globals uniq (SLam var ty x) = do
     argTy <- convertTy ty
-    (bodyTy ** body) <- convertExpr ((var, argTy) :: scope) x
+    (bodyTy ** body) <- convertExpr ((var, argTy) :: locals) globals uniq x
     pure (argTy ~> bodyTy ** ILam var argTy body)
-convertExpr scope (SLet var e1 e2) = do
-    (e1Ty ** e1') <- convertExpr scope e1
-    (e2Ty ** e2') <- convertExpr ((var, e1Ty) :: scope) e2
+convertExpr locals globals uniq (SLet var e1 e2) = do
+    (e1Ty ** e1') <- convertExpr locals globals uniq e1
+    (e2Ty ** e2') <- convertExpr ((var, e1Ty) :: locals) globals uniq e2
     pure (e2Ty ** ILet var e1' e2')
-convertExpr scope (SLit x) = pure (ITInt ** ILit x)
+convertExpr locals globals uniq (SLit x) = pure (ITInt ** ILit x)
 
 
-convertProg' : (scope : Scope) -> (uniq : UniqKeys scope) -> SProgram -> Either TypeError (IProg (scope ** uniq))
-convertProg' scope uniq [] = pure Nil
-convertProg' scope uniq ((name, expr) :: prog) =
-    case decNoKey name scope of
+convertProg' : (globals : Scope) -> (uniq : UniqKeys globals) -> SProgram -> Either TypeError (IProg (globals ** uniq))
+convertProg' globals uniq [] = pure Nil
+convertProg' globals uniq ((name, expr) :: prog) =
+    case decNoKey name globals of
          Just nokey => do
-             (ty ** expr') <- convertExpr scope expr
-             prog' <- convertProg' ((name, ty) :: scope) (UniqCons nokey uniq) prog
+             (ty ** expr') <- convertExpr [] globals uniq expr
+             prog' <- convertProg' ((name, ty) :: globals) (UniqCons nokey uniq) prog
              pure $ IConsFunc name nokey expr' prog'
          Nothing => Left $ DuplicateFunction name
 

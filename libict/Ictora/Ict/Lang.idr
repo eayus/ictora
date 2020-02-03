@@ -17,24 +17,25 @@ IGlobalScope : Type
 IGlobalScope = (scope : IScope ** UniqKeys scope)
 
 
-data IExpr : IScope -> ITy -> Type where
-    ILit : Int -> IExpr scope ITInt
-    IVar : Lookup vname scope ty -> IExpr scope ty
-    IApp : IExpr scope (a ~> b) -> IExpr scope a -> IExpr scope b
+data IExpr : IScope -> IGlobalScope -> ITy -> Type where
+    ILit : Int -> IExpr locals globals ITInt
+    ILocalVar : Lookup vname locals ty -> IExpr locals globals ty
+    IGlobalVar : Lookup vname (fst globals) ty -> IExpr locals globals ty
+    IApp : IExpr locals globals (a ~> b) -> IExpr locals globals a -> IExpr locals globals b
     ILam : (vname : String)
         -> (a : ITy)
-        -> IExpr ((vname, a) :: scope) b
-        -> IExpr scope (a ~> b)
+        -> IExpr ((vname, a) :: locals) globals b
+        -> IExpr locals globals (a ~> b)
     ILet : (vname : String)
-        -> IExpr scope a
-        -> IExpr ((vname, a) :: scope) b
-        -> IExpr scope b
+        -> IExpr locals globals a
+        -> IExpr ((vname, a) :: locals) globals b
+        -> IExpr locals globals b
 
 
 data IProg : IGlobalScope -> Type where
     Nil : IProg (scope ** scopeUniq)
     IConsFunc : (funcName : String)
              -> (nk : NoKey funcName scope)
-             -> IExpr scope t
+             -> IExpr [] (scope ** scopeUniq) t
              -> IProg ((funcName, t) :: scope ** UniqCons nk scopeUniq)
              -> IProg (scope ** scopeUniq)
