@@ -24,3 +24,19 @@ data SExpr : Type where
 
 SProgram : Type
 SProgram = List (SIdent, SExpr)
+
+
+
+
+
+-- Test Programs
+
+testProg1 : SProgram
+testProg1 = [ ("main", SVar "x") ]
+
+testProg2 : SProgram
+testProg2 = [ ("f", SLit 5)
+            , ("main", SVar "f") ]
+
+testProg3 : SProgram
+testProg3 = [ ("id", SLam "x" (NamedTy "Intt") (SVar "x")) ]

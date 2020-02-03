@@ -8,20 +8,22 @@ import public Ictora.Util
 %access public export
 
 
--- Variable i in the scope has type t
-data HasType : (i : Fin len) -> Vect len CTy -> CTy -> Type where
-    Here : HasType FZ (t :: _) t
-    There : HasType i scope t -> HasType (FS i) (_ :: scope) t
+CFuncId : Type
+CFuncId = String
 
 
-data CExpr : Vect n CTy -> CTy -> Type where
-    CLit : {litType : LitType ty} -> interpCTy litType -> CExpr scope ty
-    CApp : CExpr scope (a ~> b) -> CExpr scope a -> CExpr scope b
-    CLam : CExpr (a :: scope) b -> CExpr scope (a ~> b)
-    CVar : HasType i scope a -> CExpr scope a
-    CLet : CExpr scope a -> CExpr (a :: scope) b -> CExpr scope b
+data CExpr : (locals : Vect n CTy) -> (globals : Vect m (CFuncId, CTy)) -> CTy -> Type where
+    CLocalVar : IndexIs i local ty -> CExpr local global ty
+    CGlobalVar : LookupIs vname globals ty -> CExpr local global ty
+    CLit : Int -> CExpr local global CTInt
+    CApp : CExpr local global (a ~> b) -> CExpr local global a -> CExpr local global b
+    CLam : CExpr (a :: local) global b -> CExpr local global (a ~> b)
+    CLet : CExpr local global a -> CExpr (a :: local) global b -> CExpr local global b
 
 
-data CProgram : Vect n CTy -> Type where
-    CEmpty : CProgram scope
-    CConsFunc : CExpr scope a -> CProgram (a :: scope) -> CProgram scope
+data CProgram : (globals : Vect m (CFuncId, CTy)) -> Type where
+    IEmptyProg : CProgram globals
+    IConsFunc : (fname : CFuncId)
+             -> CExpr [] globals ty
+             -> CProgram ((fname, ty) :: globals)
+             -> CProgram globals

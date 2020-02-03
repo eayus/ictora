@@ -1,28 +1,40 @@
 module Ictora.Ict.Lang
 
 import public Data.Vect
+import public Data.Fin
 import public Ictora.Util
 import public Ictora.Ict.Types
+import public Ictora.Misc
 
 %access public export
+%default total
+
+IScope : Type
+IScope = Map String ITy
 
 
-Name : Type
-Name = String
+IGlobalScope : Type
+IGlobalScope = (scope : IScope ** UniqKeys scope)
 
 
-data IExpr : (locals : Vect n ITy) -> (globals : Vect m (Name, ITy)) -> ITy -> Type where
-    ILocalVar : IndexIs i local ty -> IExpr local global ty
-    IGlobalVar : LookupIs vname globals ty -> IExpr local global ty
-    ILit : Int -> IExpr local global ITInt
-    IApp : IExpr local global (a ~> b) -> IExpr local global a -> IExpr local global b
-    ILam : IExpr (a :: local) global b -> IExpr local global (a ~> b)
-    ILet : IExpr local global a -> IExpr (a :: local) global b -> IExpr local global b
+data IExpr : IScope -> ITy -> Type where
+    ILit : Int -> IExpr scope ITInt
+    IVar : Lookup vname scope ty -> IExpr scope ty
+    IApp : IExpr scope (a ~> b) -> IExpr scope a -> IExpr scope b
+    ILam : (vname : String)
+        -> (a : ITy)
+        -> IExpr ((vname, a) :: scope) b
+        -> IExpr scope (a ~> b)
+    ILet : (vname : String)
+        -> IExpr scope a
+        -> IExpr ((vname, a) :: scope) b
+        -> IExpr scope b
 
 
-data IProgram : (globals : Vect m (Name, ITy)) -> Type where
-    IEmptyProg : IProgram globals
-    IConsFunc : (fname : Name)
-             -> IExpr [] globals ty
-             -> IProgram ((fname, ty) :: globals)
-             -> IProgram globals
+data IProg : IGlobalScope -> Type where
+    Nil : IProg (scope ** scopeUniq)
+    IConsFunc : (funcName : String)
+             -> (nk : NoKey funcName scope)
+             -> IExpr scope t
+             -> IProg ((funcName, t) :: scope ** UniqCons nk scopeUniq)
+             -> IProg (scope ** scopeUniq)

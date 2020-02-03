@@ -23,6 +23,9 @@ data TypeError : Type where
                    -> (gotTy : ITy)
                    -> TypeError
 
+    DuplicateFunction : (name : SIdent)
+                     -> TypeError
+
 
 
 
@@ -60,3 +63,4 @@ implementation Show TypeError where
     show (UndefinedVariable name expected) = "Undefined varaible " ++ show name ++ ".\n"
     show (NonFunctionApplication badFuncTy argTy) = "Argument applied to expression that is not a function. Perhaps you applied something to too many arguments?"
     show (ArgTypeMismatch expected got) = "Function applied to argument of wrong type"
+    show (DuplicateFunction name) = "Function with that name already defined \"" ++ name ++ ".\n"

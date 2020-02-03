@@ -6,6 +6,7 @@ import Data.Vect
 import Data.HVect
 
 %access public export
+%default total
 
 
 Assoc : Type -> Type -> Type
@@ -24,6 +25,11 @@ elemIndex (x :: xs) (There later) = FS $ elemIndex xs later
 append : Vect n a -> a -> Vect (S n) a
 append Nil x = x :: Nil
 append (y :: ys) x = y :: append ys x
+
+
+data NotElem : (x : a) -> (xs : Vect n a) -> Type where
+    NotElemNil : NotElem x []
+    NotElemCons : Not (x = y) -> NotElem x ys -> NotElem x (y :: ys)
 
 
 data LookupIs : (key : a) -> Vect n (a, b) -> (val : b) -> Type where
@@ -87,12 +93,38 @@ lookupPrf k ((k', v') :: xs) = case decEq k k' of
                                         Just (v'' ** There later prf)
 
 
+
 snds : Vect n (a, b) -> Vect n b
 snds [] = []
 snds ((x, y) :: xys) = y :: snds xys
+
+
+lookupIndexPrf : DecEq a => {n : Nat} -> (k : a) -> (xs : Vect n (a, b)) -> Maybe (val : b ** i : Fin n ** IndexIs i (snds xs) val)
+lookupIndexPrf {n = Z} k [] = Nothing
+lookupIndexPrf {n = S n'} k ((k', v') :: xys) = case decEq k k' of
+                                          Yes Refl => Just (v' ** _ ** This)
+                                          No _ => do
+                                              (val ** i ** prf) <- lookupIndexPrf k xys
+                                              Just (val ** FS i ** That prf)
 
 
 keyLocation : LookupIs k xs v -> (i : _ ** IndexIs i (snds xs) v)
 keyLocation Here = (FZ ** This)
 keyLocation (There later prf) = let (i ** p) = keyLocation later in (FS i ** That p)
 
+
+data Suffix : Vect n a -> Vect m a -> Type where
+    SuffixRefl : Suffix xs xs
+    SuffixCons : Suffix xs ys -> Suffix xs (y :: ys)
+
+
+weakenSuffix : Suffix (x :: xs) ys -> Suffix xs ys
+weakenSuffix SuffixRefl = SuffixCons SuffixRefl
+weakenSuffix (SuffixCons x) = SuffixCons $ weakenSuffix x
+
+
+suffixIndexIs : Suffix xs ys -> IndexIs i xs v -> (j : _ ** IndexIs j ys v)
+suffixIndexIs SuffixRefl p = (_ ** p)
+suffixIndexIs (SuffixCons sfx) p =
+    let (sfx' ** p') = suffixIndexIs sfx p
+    in (FS sfx' ** That p')

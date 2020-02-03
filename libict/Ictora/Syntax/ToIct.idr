@@ -3,71 +3,57 @@ module Ictora.Syntax.ToIct
 import Ictora.Syntax.Lang
 import Ictora.Syntax.TypeError
 import Ictora.Ict.Lang
+import Ictora.Misc
 import Control.Monad.Reader
 import Control.Monad.Trans
 
 %default total
 
 
-TypeAliases : Type
-TypeAliases = List (SIdent, ITy)
-
-Scope : Nat -> Type
-Scope n = Vect n (SIdent, ITy)
+Scope : Type
+Scope = Map String ITy
 
 
-
-defaultTAs : TypeAliases
-defaultTAs = [ ("Int", ITInt), ("Float", ITFloat) ]
-
-
-convertTy : TypeAliases -> STy -> Either TypeError ITy
-convertTy tas (t ~> u) = [| convertTy tas t ~> convertTy tas u |]
-convertTy tas (NamedTy name) = case lookup name tas of
-                                    Just ity => pure ity
-                                    Nothing => Left $ UnknownType name (fst <$> tas)
+convertTy : STy -> Either TypeError ITy
+convertTy (NamedTy "Int") = pure ITInt
+convertTy (NamedTy "Float") = pure ITFloat
+convertTy (NamedTy badName) = Left $ UnknownType badName []
+convertTy (t ~> u) = [| convertTy t ~> convertTy u |]
 
 
-convertExpr : TypeAliases
-           -> (locals : Scope n)
-           -> (globals : Scope m)
-           -> SExpr
-           -> Either TypeError (ty : ITy ** IExpr (snds locals) globals ty)
-convertExpr tas locals globals (SVar name) = case lookupPrf name locals of
-                                                  Just (ty ** prf) => let (i ** loc ) = keyLocation prf in Right $ (ty ** ILocalVar loc)
-                                                  Nothing => case lookupPrf name globals of
-                                                                  Just (ty ** prf) => Right (ty ** IGlobalVar prf)
-                                                                  Nothing => Left $ UndefinedVariable name (toList . map fst $ locals ++ globals)
-convertExpr tas locals globals (SApp l r) = do
-    (lTy ** l') <- convertExpr tas locals globals l
-    (rTy ** r') <- convertExpr tas locals globals r
+convertExpr : (scope : Scope) -> SExpr -> Either TypeError (t : _ ** IExpr scope t)
+convertExpr scope (SVar name) = case lookupPrf name scope of
+                                     Just (t ** prf) => Right (t ** IVar prf)
+                                     Nothing => Left $ UndefinedVariable name (fst <$> scope)
+convertExpr scope (SApp x y) = do
+    (lTy ** l) <- convertExpr scope x
+    (rTy ** r) <- convertExpr scope y
     case lTy of
          (t1 ~> t2) => case decEq t1 rTy of
-                            Yes Refl => Right $ (t2 ** IApp l' r')
+                            Yes Refl => pure (t2 ** IApp l r)
                             No _ => Left $ ArgTypeMismatch t1 rTy
-
          _ => Left $ NonFunctionApplication lTy rTy
-convertExpr tas locals globals (SLam var ty x) = do
-    argTy <- convertTy tas ty
-    (bodyTy ** body) <- convertExpr tas ((var, argTy) :: locals) globals x
-    Right (argTy ~> bodyTy ** ILam body)
-convertExpr tas locals globals (SLet name e1 e2) = do
-    (e1Ty ** e1') <- convertExpr tas locals globals e1
-    (e2Ty ** e2') <- convertExpr tas ((name, e1Ty) :: locals) globals e2
-    Right (e2Ty ** ILet e1' e2')
-convertExpr tas locals globals (SLit x) = Right (ITInt ** ILit x)
+convertExpr scope (SLam var ty x) = do
+    argTy <- convertTy ty
+    (bodyTy ** body) <- convertExpr ((var, argTy) :: scope) x
+    pure (argTy ~> bodyTy ** ILam var argTy body)
+convertExpr scope (SLet var e1 e2) = do
+    (e1Ty ** e1') <- convertExpr scope e1
+    (e2Ty ** e2') <- convertExpr ((var, e1Ty) :: scope) e2
+    pure (e2Ty ** ILet var e1' e2')
+convertExpr scope (SLit x) = pure (ITInt ** ILit x)
 
 
-convertProg : TypeAliases 
-           -> (globals : Scope m)
-           -> SProgram
-           -> Either TypeError (IProgram globals)
-convertProg _ _ [] = Right IEmptyProg
-convertProg tas globals ((name, e) :: xs) = do
-    (bodyT ** body) <- convertExpr tas [] globals e
-    xs' <- convertProg tas ((name, bodyT) :: globals) xs
-    Right $ IConsFunc name body xs'
+convertProg' : (scope : Scope) -> (uniq : UniqKeys scope) -> SProgram -> Either TypeError (IProg (scope ** uniq))
+convertProg' scope uniq [] = pure Nil
+convertProg' scope uniq ((name, expr) :: prog) =
+    case decNoKey name scope of
+         Just nokey => do
+             (ty ** expr') <- convertExpr scope expr
+             prog' <- convertProg' ((name, ty) :: scope) (UniqCons nokey uniq) prog
+             pure $ IConsFunc name nokey expr' prog'
+         Nothing => Left $ DuplicateFunction name
 
 
-export convert : SProgram -> Either TypeError (IProgram [])
-convert = convertProg defaultTAs []
+convertProg : SProgram -> Either TypeError (IProg ([] ** UniqNil))
+convertProg = convertProg' [] UniqNil
