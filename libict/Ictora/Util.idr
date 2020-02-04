@@ -84,6 +84,15 @@ data IndexIs : Fin n -> Vect n a -> a -> Type where
     That : IndexIs n xs e -> IndexIs (FS n) (x :: xs) e
 
 
+insertIntoIndexIs : (i : Fin (S n)) -> (new : a) -> IndexIs j xs e -> (k : _ ** IndexIs k (insertAt i new xs) e)
+insertIntoIndexIs FZ new p = (_ ** That p)
+insertIntoIndexIs (FS y) new This = (_ ** This)
+insertIntoIndexIs (FS y) new (That w) =
+    let (_ ** k) = insertIntoIndexIs y new w
+    in (_ ** That k)
+
+
+
 lookupPrf : DecEq a => (k : a) -> (xs : Vect n (a, b)) -> Maybe (v : b ** LookupIs k xs v)
 lookupPrf k [] = Nothing
 lookupPrf k ((k', v') :: xs) = case decEq k k' of

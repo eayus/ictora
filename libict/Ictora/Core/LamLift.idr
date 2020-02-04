@@ -6,10 +6,7 @@ import Ictora.Core.Scope
 %default total
 
 
-liftExpr : {locals : Vect n CTy}
-        -> {globals : Vect m CTy}
-        -> {t : CTy}
-        -> CExpr locals globals t
+liftExpr : CExpr locals globals t
         -> let funcTy = localsToType locals t
         in (CExpr [] globals funcTy, CExpr locals (funcTy :: globals) t)
 liftExpr e = (wrapLocals e, applyLocals $ CGlobalVar This)
@@ -48,3 +45,11 @@ lamLiftFunc (CLam body) = case lamLiftFunc body of
                                Just (t ** (f, body')) => Just (t ** (f, CLam body'))
                                Nothing => Nothing
 lamLiftFunc e = lamLiftExpr e
+
+
+lamLiftProg : CProg globals -> CProg globals
+lamLiftProg CEmptyProg = CEmptyProg
+lamLiftProg (CConsFunc f prog) =
+    case lamLiftFunc f of
+         Just (t ** (aux, f')) => CConsFunc aux (CConsFunc f' ?prog)
+         Nothing => CConsFunc f $ lamLiftProg prog

@@ -4,6 +4,7 @@ import Ictora.Core.Lang
 import Ictora.Util
 
 %access public export
+%default total
 
 
 localsToType : Vect n CTy -> CTy -> CTy
@@ -41,3 +42,23 @@ weakenGlobals (CLit x) = CLit x
 weakenGlobals (CApp l r) = CApp (weakenGlobals l) (weakenGlobals r)
 weakenGlobals (CLam x) = CLam (weakenGlobals x)
 weakenGlobals (CLet x y) = CLet (weakenGlobals x) (weakenGlobals y)
+
+
+insertIntoExprGlobals : (i : Fin (S n))
+                     -> (newTy : CTy)
+                     -> CExpr locals globals t
+                     -> CExpr locals (insertAt i newTy globals) t
+insertIntoExprGlobals i newTy (CLocalVar y) = CLocalVar y
+insertIntoExprGlobals i newTy (CGlobalVar p) = CGlobalVar $ snd $ insertIntoIndexIs i newTy p
+insertIntoExprGlobals i newTy (CLit x) = CLit x
+insertIntoExprGlobals i newTy (CApp l r) = CApp (insertIntoExprGlobals i newTy l)
+                                                (insertIntoExprGlobals i newTy r)
+insertIntoExprGlobals i newTy (CLam x) = CLam (insertIntoExprGlobals i newTy x)
+insertIntoExprGlobals i newTy (CLet x y) = CLet (insertIntoExprGlobals i newTy x)
+                                                (insertIntoExprGlobals i newTy y)
+
+
+insertIntoProgGlobals : (i : Fin (S n))
+                     -> (newTy : CTy)
+                     -> CProg globals
+                     -> CProg (insertAt i newTy globals)
