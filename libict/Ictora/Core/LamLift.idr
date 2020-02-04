@@ -3,39 +3,48 @@ module Ictora.Core.LamLift
 import Ictora.Core.Lang
 import Ictora.Core.Scope
 
-
-data ExprNoLam : CExpr a scope -> Type where
-    LitNoLam : ExprNoLam (CLit _)
-    AppNoLam : ExprNoLam l -> ExprNoLam r -> ExprNoLam (CApp l r)
-    VarNoLam : ExprNoLam (CVar _)
-    LetNoLam : ExprNoLam var -> ExprNoLam body -> ExprNoLam (CLet var body)
+%default total
 
 
-data ExprNoInnerLam : CExpr a scope -> Type where
-    LitNoInnerLam : ExprNoInnerLam (CLit _)
-    AppNoInnerLam : ExprNoLam l -> ExprNoLam r -> ExprNoInnerLam (CApp l r)
-    LamNoInnerLam : ExprNoInnerLam body -> ExprNoInnerLam (CLam body)
-    VarNoInnerLam : ExprNoInnerLam (CVar _)
-    LetNoInnerLam : ExprNoLam var -> ExprNoInnerLam body -> ExprNoInnerLam (CLet var body)
+liftExpr : {locals : Vect n CTy}
+        -> {globals : Vect m CTy}
+        -> {t : CTy}
+        -> CExpr locals globals t
+        -> let funcTy = localsToType locals t
+        in (CExpr [] globals funcTy, CExpr locals (funcTy :: globals) t)
+liftExpr e = (wrapLocals e, applyLocals $ CGlobalVar This)
 
 
-liftExpr : CExpr scope a
-       -> let auxTy = scopeToType scope a
-       in (CExpr [] auxTy,
-           CExpr (auxTy :: scope) a)
-liftExpr e = (wrapLambdas e, applyScope (SuffixCons SuffixRefl) $ CVar Here)
+lamLiftExpr : CExpr locals globals t
+           -> Maybe (funcTy : CTy
+                    ** (CExpr [] globals funcTy,
+                       CExpr locals (funcTy :: globals) t))
+lamLiftExpr (CLocalVar _) = Nothing
+lamLiftExpr (CGlobalVar _) = Nothing
+lamLiftExpr (CLit _) = Nothing
+lamLiftExpr (CApp l r) =
+    case lamLiftExpr l of
+         Just (t ** (f, l')) => Just (t ** (f, CApp l' (weakenGlobals r)))
+         Nothing => case lamLiftExpr r of
+                         Just (t ** (f, r')) => Just (t ** (f, CApp (weakenGlobals l) r'))
+                         Nothing => Nothing
+lamLiftExpr (CLam body) =
+    case lamLiftExpr body of
+         Just (t ** (f, body')) => Just (t ** (f, CLam body'))
+         Nothing => Just (_ ** liftExpr (CLam body))
+lamLiftExpr (CLet x y) =
+    case lamLiftExpr x of
+         Just (t ** (f, x')) => Just (t ** (f, CLet x' (weakenGlobals y)))
+         Nothing => case lamLiftExpr y of
+                         Just (t ** (f, y')) => Just (t ** (f, CLet (weakenGlobals x) y'))
+                         Nothing => Nothing
 
 
-{--lamLiftExpr : (e : CExpr scope a)
-           -> Either
-                  (auxTy : CTy ** (CExpr [] auxTy, CExpr (auxTy :: scope) a))
-                  (ExprNoLam e)
-lamLiftExpr (CLit _) = Right LitNoLam
-lamLiftExpr (CVar _) = Right VarNoLam
-lamLiftExpr (CApp l r) = case lamLiftExpr l of
-                              Left (auxTy ** (aux, expr')) => ?help
-                              Right lprf => case lamLiftExpr r of
-                                                Left (auxTy ** (aux, expr')) => ?help2
-                                                Right rprf => Right $ AppNoLam lprf rprf
-lamLiftExpr (CLet x y) = ?help_5
-lamLiftExpr e@(CLam _) = Left $ (_ ** liftExpr e)--}
+lamLiftFunc : CExpr locals globals t
+           -> Maybe (funcTy : CTy
+                    ** (CExpr [] globals funcTy,
+                       CExpr locals (funcTy :: globals) t))
+lamLiftFunc (CLam body) = case lamLiftFunc body of
+                               Just (t ** (f, body')) => Just (t ** (f, CLam body'))
+                               Nothing => Nothing
+lamLiftFunc e = lamLiftExpr e
