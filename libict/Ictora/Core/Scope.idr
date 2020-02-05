@@ -34,16 +34,6 @@ applyLocals : CExpr locals globals (localsToType locals t)
 applyLocals = applyLocals' SuffixRefl
 
 
-weakenGlobals : CExpr locals globals t
-             -> CExpr locals (t' :: globals) t
-weakenGlobals (CLocalVar x) = CLocalVar x
-weakenGlobals (CGlobalVar x) = CGlobalVar $ That x
-weakenGlobals (CLit x) = CLit x
-weakenGlobals (CApp l r) = CApp (weakenGlobals l) (weakenGlobals r)
-weakenGlobals (CLam x) = CLam (weakenGlobals x)
-weakenGlobals (CLet x y) = CLet (weakenGlobals x) (weakenGlobals y)
-
-
 insertIntoExprGlobals : (i : Fin (S n))
                      -> (newTy : CTy)
                      -> CExpr locals globals t
@@ -62,3 +52,12 @@ insertIntoProgGlobals : (i : Fin (S n))
                      -> (newTy : CTy)
                      -> CProg globals
                      -> CProg (insertAt i newTy globals)
+insertIntoProgGlobals n newTy CEmptyProg = CEmptyProg
+insertIntoProgGlobals n newTy (CConsFunc f prog) =
+    CConsFunc (insertIntoExprGlobals n newTy f) (insertIntoProgGlobals (FS n) newTy prog)
+
+
+weakenGlobals : {t' : CTy}
+             -> CExpr locals globals t
+             -> CExpr locals (t' :: globals) t
+weakenGlobals {t'} = insertIntoExprGlobals FZ t'

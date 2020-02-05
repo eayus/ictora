@@ -51,5 +51,7 @@ lamLiftProg : CProg globals -> CProg globals
 lamLiftProg CEmptyProg = CEmptyProg
 lamLiftProg (CConsFunc f prog) =
     case lamLiftFunc f of
-         Just (t ** (aux, f')) => CConsFunc aux (CConsFunc f' ?prog)
+         Just (t ** (aux, f')) => lamLiftProg $ CConsFunc aux
+                                  (CConsFunc f'
+                                  (insertIntoProgGlobals (FS FZ) t prog))
          Nothing => CConsFunc f $ lamLiftProg prog
