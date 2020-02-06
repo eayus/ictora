@@ -22,3 +22,17 @@ data CProg : (globals : Vect m CTy) -> Type where
     CConsFunc : CExpr [] globals ty
              -> CProg (ty :: globals)
              -> CProg globals
+
+
+
+
+data NoLam : CExpr locals global ty -> Type where
+    NLLocalVar : NoLam (CLocalVar _)
+    NLGlobalVar : NoLam (CGlobalVar _)
+    NLLit : NoLam (CLit _)
+    NLApp : NoLam l -> NoLam r -> NoLam (CApp l r)
+    NLLet : NoLam e1 -> NoLam e2 -> NoLam (CLet e1 e2)
+
+data NoInnerLam : CExpr locals globals ty -> Type where
+    NoneAtAll : NoLam e -> NoInnerLam e
+    OuterLam : NoInnerLam body -> NoInnerLam (CLam body)

@@ -61,3 +61,13 @@ weakenGlobals : {t' : CTy}
              -> CExpr locals globals t
              -> CExpr locals (t' :: globals) t
 weakenGlobals {t'} = insertIntoExprGlobals FZ t'
+
+
+-- Various Proofs
+
+wrapLocalsPreservesNIL : {locals : Vect n CTy}
+                      -> {e : CExpr locals globals t}
+                      -> NoInnerLam e
+                      -> NoInnerLam (wrapLocals e)
+wrapLocalsPreservesNIL {locals = []} p = p
+wrapLocalsPreservesNIL {locals = (_ :: _)} p = wrapLocalsPreservesNIL $ OuterLam p
