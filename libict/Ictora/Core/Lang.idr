@@ -36,3 +36,8 @@ data NoLam : CExpr locals global ty -> Type where
 data NoInnerLam : CExpr locals globals ty -> Type where
     NoneAtAll : NoLam e -> NoInnerLam e
     OuterLam : NoInnerLam body -> NoInnerLam (CLam body)
+
+
+data LamLifted : CProg globals -> Type where
+    LLEmpty : LamLifted CEmptyProg
+    LLConsFunc : NoInnerLam f -> LamLifted p -> LamLifted (CConsFunc f p)

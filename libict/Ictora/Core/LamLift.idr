@@ -59,12 +59,12 @@ lamLiftFunc e = case lamLiftExpr e of
                      Right x => Right x
 
 
-{--
-lamLiftProg : CProg globals -> CProg globals
-lamLiftProg CEmptyProg = CEmptyProg
+lamLiftProg : CProg globals -> (p : CProg globals ** LamLifted p)
+lamLiftProg CEmptyProg = (CEmptyProg ** LLEmpty)
 lamLiftProg (CConsFunc f prog) =
     case lamLiftFunc f of
-         Just (t ** (aux, f')) => assert_total $ lamLiftProg $ CConsFunc aux
-                                  (CConsFunc f'
-                                  (insertIntoProgGlobals (FS FZ) t prog))
-                                  Nothing => CConsFunc f $ lamLiftProg prog--}
+         Right (t ** ((aux ** nilaux), f')) =>
+             let (p' ** llp') = assert_total $ lamLiftProg $ CConsFunc f' $ insertIntoProgGlobals (FS FZ) t prog
+             in (CConsFunc aux p' ** LLConsFunc nilaux llp')
+         Left fnil => let (p' ** llp') = lamLiftProg prog
+                      in (CConsFunc f p' ** LLConsFunc fnil llp')
