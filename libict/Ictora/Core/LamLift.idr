@@ -44,17 +44,22 @@ lamLiftExpr (CLet x y) =
                          Right (t ** (aux, y')) => Right (t ** (aux, CLet (weakenGlobals x) y'))
                          Left nly => Left $ NLLet nlx nly
 
-{--
-lamLiftFunc : CExpr locals globals t
-           -> Maybe (funcTy : CTy
-                    ** (CExpr [] globals funcTy,
-                       CExpr locals (funcTy :: globals) t))
+lamLiftFunc : (e : CExpr locals globals t)
+           -> Either
+                  (NoInnerLam e)
+                  (funcTy : CTy ** (
+                      (aux : CExpr [] globals funcTy ** NoInnerLam aux),
+                      CExpr locals (funcTy :: globals) t
+                  ))
 lamLiftFunc (CLam body) = case lamLiftFunc body of
-                               Just (t ** (f, body')) => Just (t ** (f, CLam body'))
-                               Nothing => Nothing
-lamLiftFunc e = lamLiftExpr e
+                               Right (t ** (f, body')) => Right (t ** (f, CLam body'))
+                               Left bodynil => Left $ OuterLam bodynil
+lamLiftFunc e = case lamLiftExpr e of
+                     Left nle => Left $ NoneAtAll nle
+                     Right x => Right x
 
 
+{--
 lamLiftProg : CProg globals -> CProg globals
 lamLiftProg CEmptyProg = CEmptyProg
 lamLiftProg (CConsFunc f prog) =
