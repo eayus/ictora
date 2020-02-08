@@ -8,6 +8,7 @@ data CTy : Type where
     CTInt : CTy
     CTFloat : CTy
     (~>) : CTy -> CTy -> CTy
+    (*) : CTy -> CTy -> CTy
 
 
 data LitType : CTy -> Type where
